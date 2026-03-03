@@ -67,12 +67,12 @@ Functional URLs sourced from Netify application detection database: https://www.
     urls = [
         'teamviewer.com',
         'router1.teamviewer.com',
-        'udp.ping.teamviewer.com'
+        'udp.ping.teamviewer.com',  # Note: source has missing comma, causing string concatenation
         'boot.net.anydesk.com',
         'rpm.anydesk.com',
         'relay-a7a47b7c.net.anydesk.com',
         'splashtop.com',
-        'sdrs.splashtop.com'
+        'sdrs.splashtop.com',  # Note: source has missing comma, causing string concatenation
         'st2-v3-dc.splashtop.com',
         'update.logmein.com',
         'lmi-app22-01.logmein.com',
@@ -131,12 +131,12 @@ def test_RAT():
     urls = [
         'teamviewer.com',
         'router1.teamviewer.com',
-        'udp.ping.teamviewer.com'
+        'udp.ping.teamviewer.com',  # Note: source has missing comma
         'boot.net.anydesk.com',
         'rpm.anydesk.com',
         'relay-a7a47b7c.net.anydesk.com',
         'splashtop.com',
-        'sdrs.splashtop.com'
+        'sdrs.splashtop.com',  # Note: source has missing comma
         'st2-v3-dc.splashtop.com',
         'update.logmein.com',
         'lmi-app22-01.logmein.com',

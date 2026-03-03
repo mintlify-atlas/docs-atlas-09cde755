@@ -1,0 +1,292 @@
+---
+title: Running Tests
+description: Learn how to run Somnium tests using the interactive menu system and select different security test scenarios
+---
+
+## Overview
+
+Somnium provides an interactive command-line menu system that allows you to run various security tests to validate your network security controls. Each test generates malicious or suspicious traffic patterns to verify your defensive systems are working correctly.
+
+## Starting Somnium
+
+<Steps>
+  <Step title="Launch the application">
+    Run Somnium from the command line:
+    
+    ```bash
+    python main.py
+    ```
+    
+    You'll see the Somnium ASCII art banner and the main menu.
+  </Step>
+  
+  <Step title="Review the menu options">
+    The menu displays 9 test categories plus an exit option:
+    
+    ```
+    #1 Test connection with known bad IPs.
+    #2 Test connection with known Phishing URLs.
+    #3 Test connection to TOR Exits Nodes.
+    #4 Test connection to live Malware distribution Urls
+    #5 Test connection to known Cryptomining domains.
+    #6 Test connection to Domain-Generated-Algorithm Domains.
+    #7 Test connection to Remote Desktop Management.(Anydesk,etc.)
+    #8 Test connection using known bad user agents.
+    #9 Generate DNS queries using DoH
+    #0 Exit.
+    ```
+  </Step>
+  
+  <Step title="Select a test">
+    Enter the number corresponding to your desired test and press Enter.
+  </Step>
+</Steps>
+
+<Note>
+  After each test completes, the screen clears and returns you to the main menu for additional testing.
+</Note>
+
+## Test Categories
+
+<Tabs>
+  <Tab title="Known Bad IPs">
+    **Option 1: Test connection with known bad IPs**
+    
+    Tests connectivity to malicious IP addresses from threat intelligence feeds.
+    
+    **What it does:**
+    - Downloads samples from Cisco Talos, EmergingThreats, and Mirai databases
+    - Selects 15 random malicious IP addresses
+    - Tests connectivity on ports 80, 22, and 443
+    - Records results with timestamps
+    
+    **Output file:** `IP_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:14:23:45 IP:192.0.2.1 : Port:80 test SUCCESSFUL
+    Timestamp:14:23:50 IP:192.0.2.1 : Port:22 test FAILED
+    Timestamp:14:23:55 IP:192.0.2.1 : Port:443 test SUCCESSFUL
+    ```
+    
+    <Tip>
+      Your firewall should block these connections. If tests show "SUCCESSFUL", investigate why malicious IPs aren't being blocked.
+    </Tip>
+  </Tab>
+  
+  <Tab title="Phishing URLs">
+    **Option 2: Test connection with known Phishing URLs**
+    
+    Validates URL filtering and web security controls against active phishing sites.
+    
+    **What it does:**
+    - Downloads current phishing URLs from OpenPhish feed
+    - Tests 15 randomly selected phishing URLs
+    - Attempts HTTP/HTTPS connections with 5-second timeout
+    - Logs successful and failed connection attempts
+    
+    **Output file:** `URL_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:15:10:22 URL:http://malicious-site.example test SUCCESSFUL
+    Timestamp:15:10:28 URL:http://phishing-page.example test FAILED
+    ```
+  </Tab>
+  
+  <Tab title="TOR Exit Nodes">
+    **Option 3: Test connection to TOR Exit Nodes**
+    
+    Tests if TOR network traffic is being monitored or blocked.
+    
+    **What it does:**
+    - Downloads list of active TOR exit nodes
+    - Tests 15 random TOR exit node IPs
+    - Attempts connections on ports 80 and 443
+    - Records connectivity results
+    
+    **Output file:** `TOR_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:16:05:10 IP:198.51.100.42 : Port:80 test SUCCESSFUL
+    Timestamp:16:05:15 IP:198.51.100.42 : Port:443 test FAILED
+    ```
+  </Tab>
+  
+  <Tab title="Malware Distribution">
+    **Option 4: Test connection to live Malware distribution URLs**
+    
+    Tests against active malware distribution sites from Abuse.ch URLhaus.
+    
+    **What it does:**
+    - Retrieves 200 recent malware URLs from URLhaus API
+    - Filters for "online" status URLs only
+    - Tests 20 random samples
+    - Logs connection attempts (does not download malware)
+    
+    **Output file:** `Malware_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:17:30:42 URL:http://malware-dist.example/payload.exe test SUCCESFULL
+    Timestamp:17:30:48 URL:http://c2-server.example/download test FAILED
+    ```
+    
+    <Note>
+      This test only attempts connections - it does NOT download actual malware files.
+    </Note>
+  </Tab>
+  
+  <Tab title="Cryptomining">
+    **Option 5: Test connection to known Cryptomining domains**
+    
+    Validates detection of cryptocurrency mining infrastructure.
+    
+    **What it does:**
+    - Downloads list of known mining-related URLs
+    - Tests 15 random samples
+    - Attempts HTTP/HTTPS connections
+    - Records connectivity results
+    
+    **Output file:** `Mining_Results.txt`
+  </Tab>
+  
+  <Tab title="DGA Domains">
+    **Option 6: Test connection to Domain-Generated-Algorithm Domains**
+    
+    Generates and tests algorithmically-created domains similar to malware C2 domains.
+    
+    **What it does:**
+    - Generates 15 random DGA-style domains
+    - Uses high-risk TLDs (.xyz, .top, .zone, .info, .biz, .gq, .tk, .club)
+    - Creates random 5-15 character domain names
+    - Tests on ports 80 and 443
+    
+    **Output file:** `DGA_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:18:45:12 IP:xjkpqmwz.xyz : Port:80 tested (Actual DGA generated by script, so the domain even may not exist BUT look if your FW or IPS detected the request and tagged it)
+    ```
+    
+    <Tip>
+      Modern firewalls and IPS systems should flag DGA domain patterns even if the domains don't exist.
+    </Tip>
+  </Tab>
+  
+  <Tab title="Remote Desktop Tools">
+    **Option 7: Test connection to Remote Desktop Management tools**
+    
+    Tests detection of unsanctioned remote access tools often used by threat actors.
+    
+    **What it does:**
+    - Tests connections to TeamViewer, AnyDesk, Splashtop, LogMeIn, ScreenConnect, and GoToAssist domains
+    - Uses ping to test connectivity
+    - Records all connection attempts
+    
+    **Output file:** `RAT_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:19:20:15 URL:teamviewer.com test DONE
+    Timestamp:19:20:16 URL:boot.net.anydesk.com test DONE
+    ```
+    
+    <Note>
+      These are legitimate tools, but threat actors commonly use them for persistence. Your security policy may require blocking or monitoring these applications.
+    </Note>
+  </Tab>
+  
+  <Tab title="Bad User Agents">
+    **Option 8: Test connection using known bad user agents**
+    
+    Tests web application firewall detection of malicious user agent strings.
+    
+    **What it does:**
+    - Downloads list of known bad user agents (spam bots, malware, scanners)
+    - Selects 15 random user agent strings
+    - Sends HTTPS requests to google.com with each bad user agent
+    - Records all attempts
+    
+    **Output file:** `Agent_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:20:15:30 URL:malicious-bot/1.0 test DONE
+    Timestamp:20:15:31 URL:spam-crawler test DONE
+    ```
+    
+    <Tip>
+      Your WAF or web proxy should log or block requests with known malicious user agents.
+    </Tip>
+  </Tab>
+  
+  <Tab title="DNS over HTTPS">
+    **Option 9: Generate DNS queries using DoH**
+    
+    Tests detection of encrypted DNS traffic that bypasses traditional DNS monitoring.
+    
+    **What it does:**
+    - Generates DNS queries for common domains (google.com, example.com, bing.com, cloudflare.com, apple.com)
+    - Sends queries to Google DNS and Cloudflare DNS over HTTPS
+    - Records responses from each DoH provider
+    
+    **Output file:** `DoH_Results.txt`
+    
+    **Sample output:**
+    ```
+    Timestamp:21:00:45 Google response for google.com is : {"Status":0,"Answer":[...]}
+    Timestamp:21:00:46 Cloudflare response for google.com is : {"Status":0,"Answer":[...]}
+    ```
+    
+    <Note>
+      Unmanaged DNS over HTTPS can bypass your DNS security controls. Consider allowing only managed DoH/DoT services like Cisco Umbrella or Zscaler.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<Accordion title="Run tests during maintenance windows">
+  Schedule security validation testing during planned maintenance windows to:
+  - Avoid alarm fatigue for SOC analysts
+  - Coordinate with security team for expected alerts
+  - Document baseline behavior
+</Accordion>
+
+<Accordion title="Test one category at a time">
+  Run individual test categories to:
+  - Isolate specific security control validation
+  - Make correlation easier in SIEM/IPS logs
+  - Simplify troubleshooting if issues arise
+</Accordion>
+
+<Accordion title="Document your results">
+  After each test:
+  - Review the output file for unexpected successes
+  - Verify your security systems logged the attempts
+  - Document any gaps in detection or blocking
+  - Create remediation tickets as needed
+</Accordion>
+
+<Accordion title="Test from representative locations">
+  Run Somnium from:
+  - Internal network segments
+  - DMZ environments  
+  - Remote/VPN users
+  - Different geographic locations
+  
+  This validates security controls across your entire infrastructure.
+</Accordion>
+
+## Exiting Somnium
+
+To exit the application:
+
+1. Enter `0` at the menu prompt
+2. The application will clear the screen and terminate
+
+<Tip>
+  You can run multiple tests in a single session - the menu will redisplay after each test completes.
+</Tip>

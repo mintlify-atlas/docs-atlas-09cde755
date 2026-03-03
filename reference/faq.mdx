@@ -1,0 +1,380 @@
+---
+title: FAQ
+description: Frequently asked questions about Somnium security validation tool
+---
+
+## General Questions
+
+<Accordion title="What is Somnium and what does it do?">
+Somnium is a security validation tool that generates controlled malicious network traffic to test the effectiveness of your security infrastructure (IDS/IPS, firewalls, SIEM, etc.). It downloads real threat intelligence feeds and attempts connections to verify your security tools can detect and block known threats.
+
+The tool tests detection capabilities for:
+- Known malicious IP addresses
+- Phishing URLs
+- TOR exit nodes
+- Malware distribution sites
+- Cryptomining domains
+- Domain Generation Algorithm (DGA) patterns
+- Remote access tools (TeamViewer, AnyDesk, etc.)
+- Malicious user agents
+- DNS-over-HTTPS (DoH) traffic
+</Accordion>
+
+<Accordion title="Is Somnium safe to use?">
+Somnium makes actual connections to real malicious infrastructure. While it only performs network connectivity tests (not downloading/executing malware), you should:
+
+- Only run in isolated test environments
+- Never run on production systems
+- Use proper network segmentation
+- Have security controls in place to monitor and block traffic
+- Coordinate with your security team before testing
+
+<Warning>
+Somnium connects to LIVE malicious infrastructure. This may trigger security alerts, blacklist your IP address, or violate acceptable use policies if run on shared networks.
+</Warning>
+</Accordion>
+
+<Accordion title="Do I need special permissions to run Somnium?">
+You'll need:
+
+1. **Network access**: Outbound internet connectivity to download threat feeds
+2. **File permissions**: Write access to create result files in the current directory
+3. **Organizational approval**: Authorization from your security team to generate malicious traffic
+4. **Python environment**: Python 3.x with ability to install packages
+
+No root/administrator privileges are required for basic functionality.
+</Accordion>
+
+<Accordion title="How often should I run Somnium tests?">
+Recommended testing frequency:
+
+- **After security tool changes**: Immediately after updating IDS/IPS rules, firewall policies, or threat feeds
+- **Monthly validation**: Regular verification that detection capabilities remain effective
+- **Post-maintenance**: After network maintenance or security appliance updates
+- **New deployment**: During initial setup of security infrastructure
+
+Note: Threat feeds are fetched fresh on each run, so you're always testing against current threat intelligence.
+</Accordion>
+
+## Technical Questions
+
+<Accordion title="What Python version does Somnium require?">
+Somnium is compatible with Python 3.x. It uses standard library features available in Python 3.6+.
+
+Key dependencies:
+- Python 3.6 or higher
+- pip package manager
+- Internet connectivity for package installation
+
+Install dependencies:
+```bash
+pip install -r requierements.txt
+```
+
+(Note: The file is named `requierements.txt` with a spelling variation)
+</Accordion>
+
+<Accordion title="Why are some tests reporting 'FAILED'?">
+Test failures are expected and normal:
+
+1. **Malicious infrastructure goes offline quickly** - Many threat actors shut down infrastructure within hours
+2. **Your security tools are working** - Blocked connections appear as "FAILED"
+3. **Network timeouts** - 5-second timeout may be too short for slow connections
+4. **Firewall blocking** - Outbound filtering is preventing connections
+
+To validate security tool effectiveness:
+- Review IDS/IPS logs during test timeframe
+- Check if alerts were generated
+- Verify blocked connections in firewall logs
+- Correlate timestamps with test results
+
+"FAILED" tests don't necessarily mean Somnium isn't working - they often indicate your security controls ARE working.
+</Accordion>
+
+<Accordion title="Can I customize the sample sizes?">
+Yes, you can modify sample sizes by editing main.py:
+
+```python
+# Change from 15 to 30 samples
+for _ in range(30):  # Previously: range(15)
+    randomURL = random.choice(lines)
+```
+
+Current sample sizes:
+- IP addresses: 15 (5 from each of 3 sources)
+- Phishing URLs: 15
+- TOR nodes: 15
+- Malware URLs: 20
+- Cryptomining: 15
+- DGA domains: 14
+- User agents: 15
+- DoH queries: 5 domains × 2 providers = 10 requests
+
+Larger samples increase test coverage but also increase runtime and network traffic.
+</Accordion>
+
+<Accordion title="What do the result files contain?">
+Each test generates a timestamped log file:
+
+**Format**:
+```
+Timestamp:14:23:45 IP:192.0.2.1 : Port:80 test SUCCESSFUL
+Timestamp:14:23:47 IP:192.0.2.2 : Port:443 test FAILED
+```
+
+**Result files**:
+- `IP_Results.txt` - Known bad IP connections
+- `URL_Results.txt` - Phishing URL tests
+- `TOR_Results.txt` - TOR exit node tests
+- `Malware_Results.txt` - Malware distribution tests
+- `Mining_Results.txt` - Cryptomining tests
+- `DGA_Results.txt` - DGA domain tests
+- `RAT_Results.txt` - Remote access tool tests
+- `Agent_Results.txt` - Bad user agent tests
+- `DoH_Results.txt` - DNS-over-HTTPS tests
+
+Files use append mode, so results accumulate across multiple runs.
+</Accordion>
+
+<Accordion title="How do I increase timeout values?">
+Modify timeout settings in main.py:
+
+**Socket timeouts** (port scanning):
+```python
+sock.settimeout(10)  # Change from 5 to 10 seconds
+```
+
+**HTTP timeouts** (web requests):
+```python
+response = requests.get(url, timeout=10)  # Change from 5 to 10
+```
+
+Longer timeouts reduce false negatives on slow networks but increase overall test duration.
+</Accordion>
+
+## Security & Compliance
+
+<Accordion title="Will running Somnium get me blacklisted?">
+Possibly. Connecting to malicious infrastructure may result in:
+
+1. **Your IP being logged** by threat actors
+2. **Blacklist inclusion** on reputation services
+3. **ISP abuse complaints** if running on shared hosting
+4. **Cloud provider suspension** if violating acceptable use policies
+
+**Mitigation strategies**:
+- Use dedicated testing IP addresses
+- Run from isolated lab environments
+- Use VPN/proxy for testing (check provider ToS)
+- Coordinate with network administrators
+- Document testing activities for security audit trails
+</Accordion>
+
+<Accordion title="Does Somnium download or execute malware?">
+No. Somnium only tests network connectivity:
+
+**What it does**:
+- Downloads text-based threat feed lists
+- Makes HTTP GET requests to URLs (receives responses)
+- Opens TCP socket connections to test ports
+- Sends ping packets
+
+**What it doesn't do**:
+- Download malware binaries
+- Execute malicious code
+- Exploit vulnerabilities
+- Participate in botnets
+- Send spam or attack traffic
+
+<Warning>
+While Somnium doesn't intentionally download malware, HTTP requests to malware distribution URLs may receive malicious responses. Ensure proper network security controls are in place.
+</Warning>
+</Accordion>
+
+<Accordion title="Is Somnium compliant with security policies?">
+Compliance depends on your organization's policies:
+
+**Typically allowed**:
+- Security validation testing in lab environments
+- Authorized penetration testing activities
+- Red team exercises with proper approval
+
+**Typically prohibited**:
+- Unauthorized testing on production networks
+- Testing without security team knowledge
+- Running on shared/public networks
+
+**Best practices**:
+1. Obtain written approval before testing
+2. Document all test activities
+3. Use isolated test environments
+4. Coordinate timing with security operations
+5. Notify SOC team before generating alerts
+</Accordion>
+
+<Accordion title="What data does Somnium collect?">
+Somnium collects only local test results:
+
+**Collected locally**:
+- Timestamps of connection attempts
+- IP addresses/URLs tested
+- Success/failure status
+- Port numbers tested
+
+**NOT collected**:
+- Personal information
+- Network credentials
+- Sensitive data from your environment
+
+**Data storage**:
+- All results stored in local text files
+- No external transmission of test results
+- No telemetry or analytics sent to third parties
+
+Temporary feed files are automatically deleted after sample extraction.
+</Accordion>
+
+## Troubleshooting
+
+<Accordion title="Why aren't my security tools detecting the tests?">
+Common reasons for detection failures:
+
+1. **Security tool placement** - Tool not inline with test traffic
+2. **Outdated signatures** - Threat intelligence feeds not current
+3. **Configuration issues** - Detection rules not enabled
+4. **Encrypted traffic** - HTTPS/TLS bypassing inspection
+5. **Log retention** - Events not being logged or already rotated
+
+**Validation steps**:
+- Confirm security tool is actively monitoring test network segment
+- Verify threat feeds are updated on security appliances
+- Check if SSL inspection is configured for HTTPS tests
+- Review logs during exact timestamp of test execution
+- Test with known-good detection (e.g., EICAR test file)
+</Accordion>
+
+<Accordion title="Tests are failing to download threat feeds">
+Feed download failures typically caused by:
+
+1. **Network connectivity issues** - No internet access
+2. **Firewall blocking** - Outbound HTTP/HTTPS blocked
+3. **Proxy configuration** - Corporate proxy not configured
+4. **DNS resolution failure** - Cannot resolve feed URLs
+5. **Feed provider downtime** - External service unavailable
+
+**Troubleshooting**:
+```bash
+# Test connectivity
+curl http://opendbl.net/lists/etknown.list
+curl https://openphish.com/feed.txt
+
+# Check DNS
+nslookup opendbl.net
+
+# Test with proxy (if needed)
+export http_proxy=http://proxy.example.com:8080
+```
+
+See [Troubleshooting](/reference/troubleshooting) for detailed solutions.
+</Accordion>
+
+<Accordion title="How do I test only specific threat types?">
+Modify the main menu logic or comment out unwanted tests:
+
+**Option 1: Run specific function directly**
+```python
+# Add at end of main.py
+known_phish()  # Only run phishing test
+```
+
+**Option 2: Comment out menu options**
+```python
+if int(choice) == 1:
+    known_IP()
+# elif int(choice) == 2:
+#     known_phish()  # Disabled
+elif int(choice) == 3:
+    known_TOR()
+```
+
+**Option 3: Create custom test script**
+```python
+from main import known_phish, known_TOR
+
+# Run only phishing and TOR tests
+known_phish()
+known_TOR()
+```
+</Accordion>
+
+<Accordion title="Can I use Somnium with a VPN or proxy?">
+Yes, but with considerations:
+
+**HTTP proxy configuration**:
+```bash
+export http_proxy=http://proxy.example.com:8080
+export https_proxy=http://proxy.example.com:8080
+python main.py
+```
+
+**SOCKS proxy** (requires additional configuration):
+```bash
+pip install requests[socks]
+```
+
+**Limitations**:
+- Socket-based tests (IP port scanning) may not respect HTTP proxies
+- VPN providers may block malicious traffic
+- Proxy logs will show all connection attempts
+- Some proxies block suspicious User-Agent headers
+
+**Recommendation**: Run in isolated environment without proxy for accurate security tool validation.
+</Accordion>
+
+## Data Sources
+
+<Accordion title="How current are the threat intelligence feeds?">
+Feed update frequencies vary:
+
+- **Real-time**: URLhaus malware distribution (API)
+- **Hourly**: OpenPhish phishing URLs
+- **Daily**: OpenDBL IP lists, TOR exit nodes
+- **Weekly**: Bad user agent lists
+- **Static**: Remote desktop tool domains
+
+Somnium fetches fresh data on every run, ensuring tests use current threat intelligence. See [Data Sources](/reference/data-sources) for complete list.
+</Accordion>
+
+<Accordion title="Can I add my own threat feeds?">
+Yes, modify the URL lists in main.py:
+
+```python
+def known_IP():
+    urls = [
+        'http://opendbl.net/lists/etknown.list',
+        'http://opendbl.net/lists/talos.list',
+        'https://mirai.security.gives/data/ip_list.txt',
+        'https://your-custom-feed.example.com/ips.txt'  # Add here
+    ]
+```
+
+**Requirements for custom feeds**:
+- Text-based format (one indicator per line)
+- Publicly accessible URL
+- Valid IP addresses or URLs matching regex patterns
+- HTTP/HTTPS accessible (no authentication)
+</Accordion>
+
+<Accordion title="Are the test URLs actually dangerous?">
+Yes, the URLs are from real threat intelligence:
+
+- **OpenPhish**: Active phishing campaigns
+- **URLhaus**: Live malware distribution sites
+- **Cryptomining**: Actual cryptojacking domains
+
+<Warning>
+Do not visit these URLs in a browser or download content from them. Somnium's automated testing is designed to trigger security detections, not to interact with malicious content.
+</Warning>
+
+The tool only performs connectivity tests - it doesn't submit credentials, download executables, or interact with malicious functionality.
+</Accordion>

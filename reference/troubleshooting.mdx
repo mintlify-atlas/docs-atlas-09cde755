@@ -1,0 +1,355 @@
+---
+title: Troubleshooting
+description: Common issues and solutions when running Somnium security validation tests
+---
+
+## Connection Errors
+
+### Socket Connection Failures
+
+**Error scenario**: Tests report "test FAILED" for socket connections
+
+**Code reference**: main.py:53-79 (IP testing), main.py:149-175 (TOR testing)
+
+**Common causes**:
+1. Target IP/port is genuinely offline or filtered
+2. Firewall blocking outbound connections
+3. Network timeout (5 second limit)
+4. Socket connection refused by target
+
+**Exception handling**:
+```python
+try:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(5)
+    result = sock.connect_ex((ip, port))
+    # ... connection logic
+except Exception as e:
+    # Connection failed - logged as "test FAILED"
+    myFile.write(resultDOWN)
+    continue
+```
+
+**Solutions**:
+- Check your network connectivity
+- Verify firewall rules allow outbound connections on ports 22, 80, 443
+- Review security appliance logs to confirm tests are being detected
+- Increase timeout if testing over slow networks (modify `sock.settimeout(5)` value)
+
+---
+
+### HTTP Request Timeouts
+
+**Error scenario**: HTTP requests fail with timeout exceptions
+
+**Code reference**: main.py:106-120 (phishing), main.py:200-213 (malware), main.py:236-250 (cryptomining)
+
+**Common causes**:
+1. Target URL is slow to respond
+2. Target URL is offline
+3. Web application firewall (WAF) blocking requests
+4. Rate limiting by target server
+
+**Exception handling**:
+```python
+try:
+    response = requests.get(url, timeout=5)
+    if response.status_code == 200:
+        # Success
+    else:
+        # Non-200 status code
+except Exception as e:
+    # Timeout or connection error
+    continue
+```
+
+**Solutions**:
+- Expected behavior - many malicious URLs go offline quickly
+- Check network proxy configuration if all requests fail
+- Verify SSL certificate validation isn't causing issues
+- Consider increasing timeout for slow networks: `requests.get(url, timeout=10)`
+
+---
+
+### Ping Command Failures
+
+**Error scenario**: Subprocess ping commands fail during RAT testing
+
+**Code reference**: main.py:322-330
+
+**Common causes**:
+1. Domain resolution failure (DNS blocking)
+2. ICMP traffic blocked by firewall
+3. Network unreachable
+
+**Exception handling**:
+```python
+try:
+    subprocess.check_output(['ping', ping_args, '1', url])
+    # Ping successful
+except subprocess.CalledProcessError:
+    # Ping failed - still logged as "test DONE"
+    myFile.write(result)
+```
+
+**Solutions**:
+- This is expected behavior if ICMP is blocked
+- Check DNS resolution: `nslookup teamviewer.com`
+- Verify ICMP is allowed in firewall rules
+- Note: Both success and failure are logged as "test DONE" - check IDS/IPS logs for detection
+
+## Data Source Errors
+
+### Feed Download Failures
+
+**Error scenario**: Unable to download threat intelligence feeds
+
+**Code reference**: main.py:33-39 (IP feeds), main.py:89-94 (phishing feed), main.py:130-135 (TOR feed)
+
+**Common causes**:
+1. External feed URL is temporarily unavailable
+2. HTTP 403/404/500 errors from feed provider
+3. Network proxy blocking access
+4. SSL certificate verification failure
+
+**Detection logic**:
+```python
+response = requests.get(url)
+if response.status_code == 200:
+    # Save file
+else:
+    # File won't be created, will fail later
+```
+
+**Solutions**:
+- Check feed URL availability in browser
+- Verify network connectivity: `curl http://opendbl.net/lists/etknown.list`
+- Configure proxy settings if behind corporate firewall
+- For SSL issues, check certificate bundle: `certifi.where()`
+
+<Warning>
+If feeds fail to download, Somnium will crash when trying to read non-existent files. Always check console output during "Downloading Samples" phase.
+</Warning>
+
+---
+
+### Empty or Invalid Feed Data
+
+**Error scenario**: Sample selection fails due to invalid data in feeds
+
+**Code reference**: main.py:44-47 (IP validation), main.py:99-102 (URL validation)
+
+**Common causes**:
+1. Feed contains no valid IPs/URLs matching regex patterns
+2. Feed format changed
+3. Downloaded file is empty
+
+**Validation logic**:
+```python
+# IP validation
+pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+if check_ip(randomIP):
+    sampleIP.append(randomIP)
+
+# URL validation
+pattern = r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)'
+if check_url(randomURL):
+    sampleURL.append(randomURL)
+```
+
+**Solutions**:
+- Manually inspect downloaded feed files
+- Verify feed format matches expected structure
+- Check if feed provider changed URL or format
+- Adjust validation regex if feed format changed
+
+## URLhaus API Issues
+
+### No "Online" URLs Available
+
+**Error scenario**: URLhaus returns no URLs with "online" status
+
+**Code reference**: main.py:185-197
+
+**Common causes**:
+1. All recent malware URLs have been taken offline
+2. URLhaus API temporarily unavailable
+3. JSON parsing error
+
+**Filtering logic**:
+```python
+for _ in json_response["urls"]:
+    status = json_response["urls"][counter]["url_status"]
+    if status == "online":
+        liveURL = json_response["urls"][counter]["url"]
+        urlsIndex.append(liveURL)
+    counter = counter + 1
+```
+
+**Solutions**:
+- Check URLhaus API directly: `curl https://urlhaus-api.abuse.ch/v1/urls/recent/limit/200/`
+- Verify JSON response structure hasn't changed
+- Consider modifying code to include "offline" URLs if no online URLs available
+
+## File Permission Errors
+
+### Unable to Write Result Files
+
+**Error scenario**: Permission denied when writing to result files
+
+**Code reference**: All test functions use `open(filename, mode="a+")`
+
+**Common causes**:
+1. Insufficient write permissions in current directory
+2. Result file locked by another process
+3. Disk full
+
+**File operations**:
+```python
+myFile = open("IP_Results.txt", mode="a+")
+myFile.write(resultUP)
+```
+
+**Solutions**:
+- Check directory permissions: `ls -la`
+- Run with appropriate permissions
+- Ensure no other process has result files open
+- Verify disk space: `df -h`
+
+---
+
+### Temporary Feed Files Not Cleaned Up
+
+**Error scenario**: Temporary files remain after test completion
+
+**Code reference**: main.py:80-81, main.py:121-122, main.py:176-177
+
+**Common causes**:
+1. Script crashed before cleanup
+2. Exception occurred before `os.remove()` call
+3. File locked by antivirus
+
+**Cleanup logic**:
+```python
+for file_name in saved_files:
+    os.remove(file_name)
+```
+
+**Solutions**:
+- Manually delete temporary files: `etknown.list`, `talos.list`, `ip_list.txt`, `feed.txt`, etc.
+- Check for file locks: `lsof filename` (Linux) or Process Explorer (Windows)
+- Temporarily disable antivirus if it's quarantining downloaded threat feeds
+
+## Platform-Specific Issues
+
+### Windows vs. Linux Ping Arguments
+
+**Error scenario**: Ping commands fail on one platform but not another
+
+**Code reference**: main.py:319
+
+**Platform detection**:
+```python
+ping_args = '-n' if platform.system() == 'Windows' else '-c'
+subprocess.check_output(['ping', ping_args, '1', url])
+```
+
+**Solutions**:
+- Ensure `platform` module is available
+- On Windows, use `-n` for count
+- On Linux/macOS, use `-c` for count
+- Test ping manually: `ping -n 1 google.com` (Windows) or `ping -c 1 google.com` (Linux)
+
+---
+
+### Screen Clearing Issues
+
+**Error scenario**: `clear_screen()` function doesn't work
+
+**Code reference**: main.py:15-16
+
+**Platform detection**:
+```python
+os.system(['clear','cls'][os.name == 'nt'])
+```
+
+**Solutions**:
+- Windows uses `cls` command
+- Linux/macOS uses `clear` command
+- If terminal doesn't support clearing, comment out `clear_screen()` calls
+
+## Dependency Issues
+
+### Module Import Errors
+
+**Error scenario**: `ModuleNotFoundError` when running script
+
+**Code reference**: main.py:1-13
+
+**Required packages**:
+- `tqdm` - Progress bars
+- `requests` - HTTP requests
+- `art` - ASCII art generation
+
+**Solutions**:
+```bash
+pip install -r requierements.txt
+```
+
+<Warning>
+Note the typo in the filename: `requierements.txt` not `requirements.txt`
+</Warning>
+
+---
+
+### SSL Certificate Verification Errors
+
+**Error scenario**: `SSLError` or certificate verification failures
+
+**Common causes**:
+1. Outdated `certifi` package
+2. Corporate SSL interception
+3. System time incorrect
+
+**Solutions**:
+```bash
+pip install --upgrade certifi
+```
+
+For corporate environments with SSL inspection:
+```python
+import requests
+requests.get(url, verify=False)  # Not recommended for production
+```
+
+## Detection Validation
+
+### Tests Complete but No IDS/IPS Alerts
+
+**Error scenario**: All tests show "SUCCESSFUL" but security tools didn't detect them
+
+**Common causes**:
+1. Security tools not configured to monitor tested traffic
+2. Tests completed but detection rules not tuned
+3. Logging not enabled on security appliances
+
+**Solutions**:
+- Verify security tool placement (inline vs. passive)
+- Check security tool logs for events matching test timestamps
+- Confirm threat intelligence feeds are updated on security tools
+- Review detection rule configuration
+- Ensure proper network segmentation for testing
+
+<Warning>
+Somnium only generates test traffic. Detection must be validated by reviewing your IDS/IPS/firewall/SIEM logs separately.
+</Warning>
+
+## Getting Help
+
+If you encounter issues not covered here:
+
+1. Check the result files for specific error details
+2. Review security appliance logs during test timeframes
+3. Verify network connectivity to external feeds
+4. Test individual functions separately by modifying the main menu
+5. Enable debug logging by adding print statements in exception blocks

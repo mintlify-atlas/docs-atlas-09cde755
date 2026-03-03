@@ -1,0 +1,309 @@
+---
+title: 'Remote Desktop Tool Testing'
+description: 'Test detection of unsanctioned remote desktop management tools commonly used by threat actors for persistence and data exfiltration'
+---
+
+The `test_RAT()` function tests your network's ability to detect connections to unsanctioned remote desktop management tools. While tools like TeamViewer and AnyDesk have legitimate uses, threat actors frequently abuse them for persistence and data exfiltration.
+
+## Security Context
+
+Unsanctioned remote desktop tools are increasingly used by threat actors because:
+
+- They appear as legitimate software to security tools
+- They provide persistent remote access
+- They can exfiltrate data through encrypted tunnels
+- They bypass traditional malware detection
+- They're difficult to distinguish from authorized usage
+
+<Warning>
+According to Red Canary research, remote access tools are among the most common techniques used by threat actors for persistence and data exfiltration.
+
+Read more: https://redcanary.com/blog/misbehaving-rats/
+</Warning>
+
+## Tested Remote Desktop Tools
+
+This module tests connections to domains associated with popular remote desktop software:
+
+### TeamViewer
+- `teamviewer.com`
+- `router1.teamviewer.com`
+- `udp.ping.teamviewer.com`
+
+### AnyDesk
+- `boot.net.anydesk.com`
+- `rpm.anydesk.com`
+- `relay-a7a47b7c.net.anydesk.com`
+
+### Splashtop
+- `splashtop.com`
+- `sdrs.splashtop.com`
+- `st2-v3-dc.splashtop.com`
+
+### LogMeIn
+- `update.logmein.com`
+- `lmi-app22-01.logmein.com`
+- `secure.logmeinrescue.com`
+
+### ScreenConnect
+- `screenconnect.com`
+- `server-nix4beff1f3-web.screenconnect.com`
+- `instance-ra153n-relay.screenconnect.com`
+
+### GoToAssist
+- `gotoassist.com`
+
+<Info>
+Functional URLs sourced from Netify application detection database: https://www.netify.ai/resources/applications
+</Info>
+
+## How It Works
+
+<Steps>
+  <Step title="Define Target URLs">
+    Uses a curated list of domains associated with major remote desktop tools.
+    
+    ```python
+    urls = [
+        'teamviewer.com',
+        'router1.teamviewer.com',
+        'udp.ping.teamviewer.com'
+        'boot.net.anydesk.com',
+        'rpm.anydesk.com',
+        'relay-a7a47b7c.net.anydesk.com',
+        'splashtop.com',
+        'sdrs.splashtop.com'
+        'st2-v3-dc.splashtop.com',
+        'update.logmein.com',
+        'lmi-app22-01.logmein.com',
+        'secure.logmeinrescue.com',
+        'screenconnect.com',
+        'server-nix4beff1f3-web.screenconnect.com',
+        'instance-ra153n-relay.screenconnect.com',
+        'gotoassist.com'
+    ]
+    ```
+  </Step>
+  
+  <Step title="Platform Detection">
+    Determines the correct ping command arguments based on the operating system.
+    
+    ```python
+    ping_args = '-n' if platform.system() == 'Windows' else '-c'
+    ```
+  </Step>
+  
+  <Step title="Ping Each Domain">
+    Sends ICMP ping requests to each remote desktop domain to test connectivity.
+    
+    ```python
+    for url in urls:
+        try:
+            subprocess.check_output(['ping', ping_args, '1', url])
+            current_time = time.strftime("%X")
+            result = f"Timestamp:{str(current_time)} URL:{str(url)}" + " test DONE\n"
+            myFile.write(result)
+        except subprocess.CalledProcessError:
+            # Connection failed, still log it
+    ```
+  </Step>
+  
+  <Step title="Results Logging">
+    Logs all ping attempts with timestamps to `RAT_Results.txt`, regardless of success or failure.
+  </Step>
+</Steps>
+
+## Output Format
+
+Results are saved to **RAT_Results.txt** with the following format:
+
+```
+Timestamp:14:50:10 URL:teamviewer.com test DONE
+Timestamp:14:50:12 URL:router1.teamviewer.com test DONE
+Timestamp:14:50:14 URL:boot.net.anydesk.com test DONE
+Timestamp:14:50:16 URL:splashtop.com test DONE
+```
+
+<CodeGroup>
+```python Function Definition
+def test_RAT():
+    print('\nUnsanctioned Remote Desktop management tools are used by threat actors for persistance and exfil read more at: https://redcanary.com/blog/misbehaving-rats/')
+    urls = [
+        'teamviewer.com',
+        'router1.teamviewer.com',
+        'udp.ping.teamviewer.com'
+        'boot.net.anydesk.com',
+        'rpm.anydesk.com',
+        'relay-a7a47b7c.net.anydesk.com',
+        'splashtop.com',
+        'sdrs.splashtop.com'
+        'st2-v3-dc.splashtop.com',
+        'update.logmein.com',
+        'lmi-app22-01.logmein.com',
+        'secure.logmeinrescue.com',
+        'screenconnect.com',
+        'server-nix4beff1f3-web.screenconnect.com',
+        'instance-ra153n-relay.screenconnect.com',
+        'gotoassist.com'
+    ]
+    ping_args = '-n' if platform.system() == 'Windows' else '-c'
+    myFile = open("RAT_Results.txt", mode="a+")
+    for url in tqdm(urls,desc="Testing URLs from known Remote Desktop tools, results saved to RAT_Results.txt"):
+        try:
+            subprocess.check_output(['ping', ping_args, '1', url])
+            current_time = time.strftime("%X")
+            result = f"Timestamp:{str(current_time)} URL:{str(url)}" + " test DONE\n"
+            myFile.write(result)
+        except subprocess.CalledProcessError:
+            current_time = time.strftime("%X")
+            result = f"Timestamp:{str(current_time)} URL:{str(url)}" + " test DONE\n"
+            myFile.write(result)
+```
+</CodeGroup>
+
+## What to Monitor
+
+<CardGroup cols={2}>
+  <Card title="Application Control" icon="shield-check">
+    Monitor for installation and execution of unauthorized remote desktop applications on endpoints.
+  </Card>
+  
+  <Card title="Network Traffic" icon="network-wired">
+    Track connections to remote desktop domains and unusual data transfer volumes.
+  </Card>
+  
+  <Card title="DNS Queries" icon="search-location">
+    Log DNS queries to remote desktop service domains for unauthorized usage detection.
+  </Card>
+  
+  <Card title="User Behavior" icon="user-shield">
+    Correlate remote desktop usage with user accounts and expected business activities.
+  </Card>
+</CardGroup>
+
+## Threat Actor Tactics
+
+<AccordionGroup>
+  <Accordion title="Initial Access">
+    Attackers may:
+    - Trick users into installing remote desktop tools via phishing
+    - Include RDP tools in malware payloads
+    - Use social engineering to gain installation approval
+    - Exploit vulnerabilities to deploy remote access tools
+  </Accordion>
+  
+  <Accordion title="Persistence">
+    Remote desktop tools provide persistent access:
+    - Survive system reboots
+    - Appear as legitimate software
+    - Maintain access even if initial malware is removed
+    - Enable long-term network presence
+  </Accordion>
+  
+  <Accordion title="Data Exfiltration">
+    Tools enable data theft through:
+    - File transfer capabilities
+    - Clipboard synchronization
+    - Screen capture and recording
+    - Encrypted tunnels bypassing DLP
+  </Accordion>
+  
+  <Accordion title="Lateral Movement">
+    Attackers use remote access to:
+    - Move between systems in the network
+    - Access sensitive resources
+    - Deploy additional malware
+    - Escalate privileges
+  </Accordion>
+</AccordionGroup>
+
+## Legitimate vs. Malicious Usage
+
+<Note>
+Many organizations legitimately use remote desktop tools for:
+- IT support and helpdesk operations
+- Remote work enablement
+- Third-party vendor access
+- System administration
+
+The key is ensuring usage is:
+1. Authorized and documented
+2. Monitored and logged
+3. Subject to security policies
+4. Limited to approved tools only
+</Note>
+
+## Testing Workflow
+
+```bash
+# Run Somnium and select option 7
+python main.py
+# Choose: #7 Test connection to Remote Desktop Management.(Anydesk,etc.)
+
+# Review results
+cat RAT_Results.txt
+
+# Check your security controls
+# - Application control logs
+# - Network traffic to RDP domains
+# - Endpoint detection alerts
+# - User activity logs
+```
+
+## Security Policy Recommendations
+
+<Steps>
+  <Step title="Define Approved Tools">
+    Create a whitelist of approved remote desktop tools for your organization.
+  </Step>
+  
+  <Step title="Implement Controls">
+    - Block unauthorized RDP tools at the firewall
+    - Use application control to prevent installation
+    - Monitor DNS queries to RDP service domains
+    - Require approval workflow for remote access
+  </Step>
+  
+  <Step title="Monitor Usage">
+    - Log all remote desktop connections
+    - Alert on unauthorized tool usage
+    - Track data transfers during remote sessions
+    - Review access patterns regularly
+  </Step>
+  
+  <Step title="User Training">
+    - Educate users about risks of unauthorized RDP tools
+    - Provide approved alternatives
+    - Report suspicious installation requests
+    - Follow incident response procedures
+  </Step>
+</Steps>
+
+## Security Controls to Validate
+
+- **Application Whitelisting** - Block execution of unauthorized remote desktop software
+- **DNS Filtering** - Monitor and control DNS queries to remote desktop domains
+- **Firewall Rules** - Block network connections to unauthorized RDP services
+- **Endpoint Detection** - Alert on installation of remote access tools
+- **Network Analysis** - Detect unusual remote desktop traffic patterns
+- **User Activity Monitoring** - Track remote sessions and data transfers
+
+<Warning>
+If this test successfully connects to remote desktop domains and your organization doesn't authorize these tools, this indicates:
+- Lack of application control enforcement
+- Potential for unauthorized remote access
+- Risk of data exfiltration
+- Possible threat actor activity
+
+Investigate any unexpected remote desktop tool usage immediately.
+</Warning>
+
+## Incident Response
+
+If unauthorized remote desktop tools are detected:
+
+1. **Isolate** - Disconnect affected systems from the network
+2. **Investigate** - Determine who installed the tool and when
+3. **Analyze** - Review logs for data exfiltration or malicious activity
+4. **Remediate** - Remove unauthorized software and block domains
+5. **Document** - Record findings for security improvement

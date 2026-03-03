@@ -1,0 +1,213 @@
+---
+title: Installation
+description: Set up Somnium to start testing your security infrastructure
+---
+
+## Prerequisites
+
+Before installing Somnium, ensure you have the following:
+
+### Python 3.x
+
+Somnium requires Python 3.6 or later. Check your Python version:
+
+```bash
+python3 --version
+```
+
+If Python is not installed, download it from [python.org](https://www.python.org/downloads/).
+
+### pip package manager
+
+Verify pip is installed:
+
+```bash
+pip3 --version
+```
+
+### Network access
+
+Somnium requires outbound internet access to:
+- Download threat intelligence feeds
+- Connect to malicious IPs and domains for testing
+
+<Warning>
+**Important security considerations:**
+
+- Only run Somnium in isolated test environments
+- Obtain approval before generating malicious traffic
+- Configure firewall logging to capture all connection attempts
+- Never run on production networks without explicit authorization
+</Warning>
+
+## Installation steps
+
+<Steps>
+  <Step title="Clone the repository">
+    Download Somnium from GitHub:
+    
+    ```bash
+    git clone https://github.com/asluppiter/Somnium.git
+    cd Somnium
+    ```
+    
+    <Tip>
+    Alternatively, download a specific release from the [releases page](https://github.com/asluppiter/Somnium/releases).
+    </Tip>
+  </Step>
+
+  <Step title="Install dependencies">
+    Install the required Python packages:
+    
+    ```bash
+    pip3 install -r requirements.txt
+    ```
+    
+    This installs the following dependencies:
+    
+    - **requests** - HTTP library for downloading threat feeds and testing URLs
+    - **tqdm** - Progress bar visualization for tests
+    - **art** - ASCII art generation for the CLI interface
+    - **colorama** - Cross-platform colored terminal output
+    
+    <Note>
+    The requirements file is named `requierements.txt` (note the spelling) in the repository.
+    </Note>
+  </Step>
+
+  <Step title="Verify installation">
+    Test that Somnium runs successfully:
+    
+    ```bash
+    python3 main.py
+    ```
+    
+    You should see the Somnium ASCII art banner and the main menu:
+    
+    ```
+    #1 Test connection with known bad IPs.
+    #2 Test connection with known Phishing URLs.
+    #3 Test connection to TOR Exits Nodes.
+    #4 Test connection to live Malware distribution Urls
+    #5 Test connection to known Cryptomining domains.
+    #6 Test connection to Domain-Generated-Algorithm Domains.
+    #7 Test connection to Remote Desktop Management.(Anydesk,etc.)
+    #8 Test connection using known bad user agents.
+    #9 Generate DNS queries using DoH
+    #0 Exit.
+    Choice:
+    ```
+    
+    Enter `0` to exit and confirm the installation works.
+  </Step>
+</Steps>
+
+## System requirements
+
+- **Operating System**: Linux, macOS, or Windows
+- **Python**: 3.6 or higher
+- **RAM**: 512MB minimum
+- **Disk Space**: 100MB for dependencies and logs
+- **Network**: Outbound internet access (HTTP/HTTPS)
+
+## Permissions
+
+Somnium creates log files in the current working directory:
+
+- `IP_Results.txt` - Known bad IP connection tests
+- `URL_Results.txt` - Phishing URL tests
+- `TOR_Results.txt` - TOR exit node tests
+- `Malware_Results.txt` - Malware distribution URL tests
+- `Mining_Results.txt` - Cryptomining domain tests
+- `DGA_Results.txt` - Domain Generation Algorithm tests
+- `RAT_Results.txt` - Remote access tool connection tests
+- `Agent_Results.txt` - Bad user-agent tests
+- `DoH_Results.txt` - DNS over HTTPS tests
+
+Ensure you have write permissions in the directory where you run Somnium.
+
+## Network configuration
+
+<Steps>
+  <Step title="Configure logging">
+    Enable logging on your security devices **before** running tests:
+    
+    - **Firewall**: Enable connection logging for denied and allowed traffic
+    - **IDS/IPS**: Configure alerts for signature matches
+    - **Proxy**: Enable URL filtering logs
+    - **SIEM**: Ensure you're ingesting logs from all security devices
+  </Step>
+
+  <Step title="Note the test system IP">
+    Identify the IP address of the system running Somnium:
+    
+    ```bash
+    # Linux/macOS
+    ip addr show
+    # or
+    ifconfig
+    
+    # Windows
+    ipconfig
+    ```
+    
+    You'll use this IP to filter logs and correlate test activity.
+  </Step>
+
+  <Step title="Sync time">
+    Ensure the test system and security devices have synchronized clocks:
+    
+    ```bash
+    # Linux - check current time
+    date
+    
+    # Sync with NTP if needed
+    sudo ntpdate pool.ntp.org
+    ```
+    
+    Somnium timestamps all log entries, so accurate time is critical for correlation.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### ModuleNotFoundError
+
+If you see `ModuleNotFoundError: No module named 'requests'` or similar:
+
+```bash
+# Ensure you're using pip3 with Python 3
+pip3 install -r requirements.txt
+
+# Or install packages individually
+pip3 install requests tqdm art colorama
+```
+
+### Connection timeouts
+
+Many malicious IPs and URLs in threat feeds are offline. This is expected behavior. Somnium logs both successful and failed connections - the goal is to verify your security tools detect the **attempts**.
+
+### Permission denied writing logs
+
+```bash
+# Ensure write permissions in current directory
+ls -la
+
+# Or run from your home directory
+cd ~
+python3 /path/to/Somnium/main.py
+```
+
+### Python version issues
+
+If `python3` is not found but you have Python 3 installed:
+
+```bash
+# Try using python instead
+python --version
+python main.py
+```
+
+## Next steps
+
+Now that Somnium is installed, proceed to the [Quickstart](/quickstart) guide to run your first security test.

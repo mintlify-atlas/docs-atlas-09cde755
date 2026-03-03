@@ -1,0 +1,441 @@
+---
+title: Interpreting Results
+description: Understand Somnium output files, timestamp formats, test results, and how to analyze security control effectiveness
+---
+
+## Overview
+
+Somnium generates detailed result files for each test category. Understanding these output files is crucial for validating your security controls and identifying gaps in your defenses.
+
+## Output File Locations
+
+All result files are saved in the current working directory where you executed Somnium:
+
+| Test Category | Output File |
+|--------------|-------------|
+| Known Bad IPs | `IP_Results.txt` |
+| Phishing URLs | `URL_Results.txt` |
+| TOR Exit Nodes | `TOR_Results.txt` |
+| Malware Distribution | `Malware_Results.txt` |
+| Cryptomining Domains | `Mining_Results.txt` |
+| DGA Domains | `DGA_Results.txt` |
+| Remote Desktop Tools | `RAT_Results.txt` |
+| Bad User Agents | `Agent_Results.txt` |
+| DNS over HTTPS | `DoH_Results.txt` |
+
+<Note>
+  Result files are opened in append mode (`a+`), so running the same test multiple times will add new results to the existing file rather than overwriting it.
+</Note>
+
+## Result File Formats
+
+<Tabs>
+  <Tab title="IP-Based Tests">
+    **Files:** `IP_Results.txt`, `TOR_Results.txt`
+    
+    ### Format Structure
+    
+    ```
+    Timestamp:<TIME> IP:<IP_ADDRESS> : Port:<PORT_NUMBER> test <STATUS>
+    ```
+    
+    ### Example Output
+    
+    ```
+    Timestamp:14:23:45 IP:192.0.2.1 : Port:80 test SUCCESSFUL
+    Timestamp:14:23:50 IP:192.0.2.1 : Port:22 test FAILED
+    Timestamp:14:23:55 IP:192.0.2.1 : Port:443 test SUCCESSFUL
+    Timestamp:14:24:02 IP:198.51.100.42 : Port:80 test FAILED
+    Timestamp:14:24:07 IP:198.51.100.42 : Port:22 test FAILED
+    Timestamp:14:24:12 IP:198.51.100.42 : Port:443 test SUCCESSFUL
+    ```
+    
+    ### Field Descriptions
+    
+    - **Timestamp**: Time in HH:MM:SS format (local system time)
+    - **IP**: The malicious IP address being tested
+    - **Port**: TCP port number (80, 22, or 443 for bad IPs; 80 or 443 for TOR)
+    - **Status**:
+      - `SUCCESSFUL`: Connection established (potentially a security gap)
+      - `FAILED`: Connection blocked or timed out (expected behavior)
+    
+    ### Interpreting Results
+    
+    <Accordion title="SUCCESSFUL - Investigate immediately">
+      A successful connection to a known malicious IP indicates:
+      - Firewall rules may not be blocking the threat feed
+      - IPS/IDS signatures are not preventing the connection
+      - The IP may have been removed from blocklists
+      
+      **Action items:**
+      1. Verify the IP is still on threat intelligence feeds
+      2. Check firewall and IPS policies
+      3. Review why the connection was allowed
+      4. Add the IP to your blocklist if missing
+    </Accordion>
+    
+    <Accordion title="FAILED - Expected behavior">
+      A failed connection is the desired outcome:
+      - Firewall is blocking the malicious IP
+      - Network timeout occurred (no route to host)
+      - IPS dropped the connection attempt
+      
+      **Validation steps:**
+      1. Check firewall logs for explicit DENY entries
+      2. Verify IPS/IDS generated alerts
+      3. Confirm SIEM correlated the event
+    </Accordion>
+  </Tab>
+  
+  <Tab title="URL-Based Tests">
+    **Files:** `URL_Results.txt`, `Malware_Results.txt`, `Mining_Results.txt`
+    
+    ### Format Structure
+    
+    ```
+    Timestamp:<TIME> URL:<URL> test <STATUS>
+    ```
+    
+    ### Example Output
+    
+    ```
+    Timestamp:15:10:22 URL:http://malicious-site.example test SUCCESSFUL
+    Timestamp:15:10:28 URL:http://phishing-page.example test FAILED
+    Timestamp:15:10:35 URL:https://crypto-miner.example/script.js test SUCCESSFUL
+    ```
+    
+    ### Field Descriptions
+    
+    - **Timestamp**: Time in HH:MM:SS format
+    - **URL**: The malicious URL being tested
+    - **Status**:
+      - `SUCCESSFUL` or `SUCCESFULL`: HTTP 200 response received
+      - `FAILED`: Connection blocked, timed out, or non-200 status code
+    
+    <Note>
+      There's a typo in the source code - malware and mining results use "SUCCESFULL" instead of "SUCCESSFUL". Both spellings indicate a connection was established.
+    </Note>
+    
+    ### Interpreting Results
+    
+    <Accordion title="SUCCESSFUL/SUCCESFULL - Security gap detected">
+      Successfully reaching a malicious URL means:
+      - Web proxy is not blocking the threat category
+      - DNS filtering is not preventing resolution
+      - URL reputation service may be outdated
+      - The site may have been recently weaponized
+      
+      **Action items:**
+      1. Verify the URL is categorized correctly in your web filter
+      2. Check if DNS filtering is enabled and functioning
+      3. Review web proxy logs for the connection
+      4. Update threat feeds if necessary
+      5. Block the domain/URL manually if needed
+    </Accordion>
+    
+    <Accordion title="FAILED - Expected behavior">
+      Failed connections indicate proper security controls:
+      - Web proxy blocked the request
+      - DNS sinkhole prevented resolution
+      - Firewall blocked the destination IP
+      - The malicious site is offline
+      
+      **Validation steps:**
+      1. Check web proxy logs for BLOCK action
+      2. Verify DNS logs show the query was intercepted
+      3. Confirm security alerts were generated
+    </Accordion>
+  </Tab>
+  
+  <Tab title="DGA Domains">
+    **File:** `DGA_Results.txt`
+    
+    ### Format Structure
+    
+    ```
+    Timestamp:<TIME> IP:<DOMAIN> : Port:<PORT> tested (Actual DGA generated by script, so the domain even may not exist BUT look if your FW or IPS detected the request and tagged it)
+    ```
+    
+    ### Example Output
+    
+    ```
+    Timestamp:18:45:12 IP:xjkpqmwz.xyz : Port:80 tested (Actual DGA generated by script, so the domain even may not exist BUT look if your FW or IPS detected the request and tagged it)
+    Timestamp:18:45:18 IP:qpwmxjkz.top : Port:443 tested (Actual DGA generated by script, so the domain even may not exist BUT look if your FW or IPS detected the request and tagged it)
+    ```
+    
+    <Note>
+      The field is labeled "IP" but actually contains the generated domain name. This is a quirk in the code reusing the IP test format.
+    </Note>
+    
+    ### Interpreting DGA Results
+    
+    DGA testing is different - success/failure doesn't matter. What matters is **detection**:
+    
+    <Accordion title="Focus on pattern detection, not connectivity">
+      Since DGA domains are randomly generated:
+      - Most won't actually exist or resolve
+      - Connection success/failure is irrelevant
+      - The goal is to test if your security systems **recognize the pattern**
+      
+      **What to check:**
+      1. Did your IPS/IDS flag the DGA pattern?
+      2. Did DNS security classify it as algorithmic?
+      3. Were alerts generated for high-entropy domains?
+      4. Did NGFW categorize it as suspicious?
+      
+      **Action items:**
+      1. Review IPS/IDS logs for DGA signatures
+      2. Check if DNS security flagged high-entropy requests
+      3. Verify SIEM correlation rules for DGA patterns
+      4. Tune detection if no alerts were generated
+    </Accordion>
+  </Tab>
+  
+  <Tab title="Remote Desktop Tools">
+    **File:** `RAT_Results.txt`
+    
+    ### Format Structure
+    
+    ```
+    Timestamp:<TIME> URL:<DOMAIN> test DONE
+    ```
+    
+    ### Example Output
+    
+    ```
+    Timestamp:19:20:15 URL:teamviewer.com test DONE
+    Timestamp:19:20:16 URL:boot.net.anydesk.com test DONE
+    Timestamp:19:20:17 URL:sdrs.splashtop.com test DONE
+    ```
+    
+    ### Interpreting RAT Results
+    
+    All tests show "DONE" regardless of success/failure. The purpose is **detection and monitoring**:
+    
+    <Accordion title="Monitor for unsanctioned remote access">
+      Remote desktop tools are legitimate but often abused:
+      - Threat actors use them for persistence
+      - Ransomware gangs deploy them for access
+      - Insider threats may use unauthorized tools
+      
+      **What to check:**
+      1. Are these tools authorized in your organization?
+      2. Did your network monitoring detect the connections?
+      3. Were any alerts generated?
+      4. Are these applications categorized correctly?
+      
+      **Action items:**
+      1. Review firewall logs for connections to RAT domains
+      2. Check application control policies
+      3. Verify if connections are associated with authorized users
+      4. Block unauthorized remote desktop tools
+      5. Allowlist only approved remote access solutions
+    </Accordion>
+  </Tab>
+  
+  <Tab title="Bad User Agents">
+    **File:** `Agent_Results.txt`
+    
+    ### Format Structure
+    
+    ```
+    Timestamp:<TIME> URL:<USER_AGENT_STRING> test DONE
+    ```
+    
+    ### Example Output
+    
+    ```
+    Timestamp:20:15:30 URL:Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; MRA 4.6 (build 01425)) test DONE
+    Timestamp:20:15:31 URL:sqlmap/1.0-dev test DONE
+    Timestamp:20:15:32 URL:masscan/1.0 test DONE
+    ```
+    
+    <Note>
+      The field is labeled "URL" but contains the user agent string - another code quirk.
+    </Note>
+    
+    ### Interpreting User Agent Results
+    
+    All requests go to google.com, so connectivity will succeed. Focus on **WAF/proxy detection**:
+    
+    <Accordion title="Validate WAF and proxy detection">
+      Known malicious user agents should be detected:
+      - Web application firewalls should flag them
+      - Proxies should log or block suspicious agents
+      - SIEM should correlate with threat intelligence
+      
+      **What to check:**
+      1. Did WAF generate alerts for malicious user agents?
+      2. Did web proxy log requests with threat ratings?
+      3. Are user agent strings being inspected?
+      4. Were any requests blocked or flagged?
+      
+      **Action items:**
+      1. Review WAF logs for user agent violations
+      2. Check proxy logs for threat scores
+      3. Enable user agent inspection if disabled
+      4. Tune WAF rules to block known bad agents
+      5. Add user agent checks to SIEM correlation
+    </Accordion>
+  </Tab>
+  
+  <Tab title="DNS over HTTPS">
+    **File:** `DoH_Results.txt`
+    
+    ### Format Structure
+    
+    ```
+    Timestamp:<TIME> <PROVIDER> response for <DOMAIN> is : <JSON_RESPONSE>
+    ```
+    
+    ### Example Output
+    
+    ```
+    Timestamp:21:00:45 Google response for google.com is : b'{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"google.com.","type":1}],"Answer":[{"name":"google.com.","type":1,"TTL":299,"data":"142.250.185.46"}]}'
+    Timestamp:21:00:46 Cloudflare response for google.com is : b'{"Status":0,"TC":false,"RD":true,"RA":true,"AD":true,"CD":false,"Question":[{"name":"google.com.","type":1}],"Answer":[{"name":"google.com.","type":1,"TTL":300,"data":"142.250.185.46"}]}'
+    ```
+    
+    ### Interpreting DoH Results
+    
+    <Accordion title="Validate DNS security visibility">
+      DNS over HTTPS bypasses traditional DNS monitoring:
+      - Queries are encrypted in HTTPS traffic
+      - Standard DNS inspection cannot see requests
+      - Managed DoH services should be allowed
+      - Unmanaged DoH should be blocked
+      
+      **What to check:**
+      1. Did firewall detect DoH traffic?
+      2. Were connections to public DoH servers logged?
+      3. Is DoH categorized and controlled?
+      4. Are only managed DoH services allowed?
+      
+      **Action items:**
+      1. Review firewall logs for connections to dns.google and cloudflare-dns.com
+      2. Check if DoH category is blocked in firewall
+      3. Allowlist only managed DoH/DoT services (Umbrella, Zscaler, etc.)
+      4. Block all unmanaged encrypted DNS
+      5. Enable HTTPS inspection if necessary to detect DoH
+    </Accordion>
+  </Tab>
+</Tabs>
+
+## Timestamp Format
+
+All result files use the `time.strftime("%X")` format, which outputs local time in **HH:MM:SS** format:
+
+```
+14:23:45  (2:23:45 PM)
+09:15:30  (9:15:30 AM)
+23:59:59  (11:59:59 PM)
+```
+
+<Tip>
+  When correlating Somnium results with security logs, ensure you account for time zone differences between the test system and your security infrastructure.
+</Tip>
+
+## Analyzing Multiple Test Runs
+
+Since results append to existing files, you can analyze trends over time:
+
+<Steps>
+  <Step title="Identify test sessions">
+    Look for patterns in timestamps to distinguish different test runs:
+    
+    ```bash
+    # Extract unique timestamps to see test sessions
+    cat IP_Results.txt | cut -d' ' -f1 | sort -u
+    ```
+  </Step>
+  
+  <Step title="Compare success rates">
+    Count successful vs failed attempts:
+    
+    ```bash
+    # Count successful connections
+    grep "SUCCESSFUL" IP_Results.txt | wc -l
+    
+    # Count failed connections
+    grep "FAILED" IP_Results.txt | wc -l
+    ```
+  </Step>
+  
+  <Step title="Identify problematic IPs/URLs">
+    Find which threats are consistently getting through:
+    
+    ```bash
+    # Find IPs that successfully connected
+    grep "SUCCESSFUL" IP_Results.txt | cut -d' ' -f2 | sort | uniq -c
+    ```
+  </Step>
+</Steps>
+
+## Best Practices for Result Analysis
+
+<Accordion title="Correlate with SIEM immediately">
+  After each test:
+  1. Note the start and end timestamps
+  2. Search your SIEM for events in that timeframe
+  3. Verify security controls logged the activity
+  4. Document any missing alerts or blocks
+</Accordion>
+
+<Accordion title="Archive results regularly">
+  Prevent result files from growing too large:
+  ```bash
+  # Archive current results with date
+  mkdir -p results_archive
+  DATE=$(date +%Y%m%d_%H%M%S)
+  mv *_Results.txt results_archive/results_${DATE}/
+  ```
+</Accordion>
+
+<Accordion title="Create baseline metrics">
+  Track your security posture over time:
+  - Document initial test results before tuning
+  - Retest after security control changes
+  - Measure improvement in block rates
+  - Track mean time to detection
+</Accordion>
+
+<Accordion title="Share results with stakeholders">
+  Use results to drive security improvements:
+  - Show executives quantifiable security gaps
+  - Justify budget for security tools
+  - Demonstrate effectiveness of recent changes
+  - Report compliance validation to auditors
+</Accordion>
+
+## Troubleshooting Result Files
+
+<Accordion title="Result file is empty">
+  Possible causes:
+  - Test was interrupted before completion
+  - No write permissions in the directory
+  - Exception occurred before any results were written
+  
+  **Solution:** Check file permissions and try running as appropriate user.
+</Accordion>
+
+<Accordion title="Results show all FAILED">
+  If legitimate:
+  - Your security controls are working perfectly
+  - All malicious connections were blocked
+  
+  If suspicious:
+  - Network connectivity issues
+  - Firewall blocking all outbound traffic
+  - Test system is isolated from internet
+  
+  **Solution:** Run a basic connectivity test (ping, curl) to verify network access.
+</Accordion>
+
+<Accordion title="Results show all SUCCESSFUL">
+  This is a critical security issue:
+  - Firewall rules may not be applied
+  - IPS/IDS may be in monitor-only mode
+  - Threat feeds may not be loaded
+  - System may be bypassing security controls
+  
+  **Solution:** Immediately review firewall and IPS configurations.
+</Accordion>

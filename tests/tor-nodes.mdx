@@ -1,0 +1,224 @@
+---
+title: 'TOR Exit Node Testing'
+description: 'Test detection of connections to TOR network exit nodes used for anonymization and potentially malicious activities'
+---
+
+The `known_TOR()` function tests your network's ability to detect and control connections to TOR (The Onion Router) exit nodes. While TOR has legitimate privacy uses, it's also commonly used by threat actors to anonymize malicious activities.
+
+## Data Source
+
+This module uses a curated list of TOR exit nodes:
+
+- **SecOps Institute TOR List** - `https://raw.githubusercontent.com/SecOps-Institute/Tor-IP-Addresses/master/tor-exit-nodes.lst`
+
+<Info>
+TOR exit nodes are the final relay in the TOR network where traffic exits before reaching its destination. Monitoring connections to these nodes can reveal potential data exfiltration or anonymized command & control traffic.
+</Info>
+
+## How It Works
+
+<Steps>
+  <Step title="Download TOR Exit Node List">
+    Downloads the latest list of known TOR exit node IP addresses from the SecOps Institute repository.
+    
+    ```python
+    urls = 'https://raw.githubusercontent.com/SecOps-Institute/Tor-IP-Addresses/master/tor-exit-nodes.lst'
+    response = requests.get(urls)
+    if response.status_code == 200:
+        file_name = urls.split("/")[-1]
+        with open(file_name, "w") as f:
+            f.write(response.text)
+    ```
+  </Step>
+  
+  <Step title="Random Sampling">
+    Randomly selects 15 TOR exit node IPs and validates them using IP address pattern matching.
+    
+    ```python
+    for file in saved_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+            for _ in range(15):
+                randomIP = random.choice(lines)
+                if check_ip(randomIP):
+                    sampleTOR.append(randomIP)
+    ```
+  </Step>
+  
+  <Step title="Port Scanning">
+    Tests socket connections to each TOR exit node on common web ports (80, 443) with a 5-second timeout.
+    
+    ```python
+    ports = [80, 443]
+    for ip in sampleTOR:
+        for port in ports:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((ip, port))
+    ```
+  </Step>
+  
+  <Step title="Results Logging">
+    Logs all connection attempts with timestamps to `TOR_Results.txt`.
+  </Step>
+  
+  <Step title="Cleanup">
+    Removes temporary downloaded files after testing completes.
+  </Step>
+</Steps>
+
+## Output Format
+
+Results are saved to **TOR_Results.txt** with the following format:
+
+```
+Timestamp:14:30:15 IP:198.51.100.25 : Port:80 test SUCCESSFUL
+Timestamp:14:30:18 IP:198.51.100.25 : Port:443 test SUCCESSFUL
+Timestamp:14:30:23 IP:203.0.113.42 : Port:80 test FAILED
+Timestamp:14:30:28 IP:203.0.113.42 : Port:443 test FAILED
+```
+
+<CodeGroup>
+```python Function Definition
+def known_TOR():
+    urls = 'https://raw.githubusercontent.com/SecOps-Institute/Tor-IP-Addresses/master/tor-exit-nodes.lst'
+    saved_files = []
+    print("Downloading Samples")
+    response = requests.get(urls)
+    if response.status_code == 200:
+        file_name = urls.split("/")[-1]
+        with open(file_name, "w") as f:
+            f.write(response.text)
+            saved_files.append(file_name)
+    sampleTOR = []
+    for file in saved_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+            for _ in range(15):
+                randomIP = random.choice(lines)
+                if check_ip(randomIP):
+                    sampleTOR.append(randomIP)
+    sampleTOR = [x.strip() for x in sampleTOR]
+    ports = [80, 443]
+    myFile = open("TOR_Results.txt", mode="a+")
+    for ip in tqdm(sampleTOR, desc="Testing 15 TOR Exits Nodes, results saved to TOR_Results.txt"):
+        for port in ports:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(5)
+                result = sock.connect_ex((ip, port))
+                if result == 0:
+                    current_time = time.strftime("%X")
+                    resultUP = (
+                        f"Timestamp:{str(current_time)} IP:{str(ip)} : Port:{str(port)}"
+                        + " test SUCCESSFUL\n"
+                    )
+                    myFile.write(resultUP)
+                else:
+                    current_time = time.strftime("%X")
+                    resultDOWN = (
+                        f"Timestamp:{str(current_time)} IP:{str(ip)} : Port:{str(port)}"
+                        + " test FAILED\n"
+                    )
+                    myFile.write(resultDOWN)
+                sock.close()
+            except Exception as e:
+                current_time = time.strftime("%X")
+                resultDOWN = (
+                    f"Timestamp:{str(current_time)} IP:{str(ip)} : Port:{str(port)}"
+                    + " test FAILED\n"
+                )
+                myFile.write(resultDOWN)
+                continue
+    for file_name in saved_files:
+        os.remove(file_name)
+```
+</CodeGroup>
+
+## What to Monitor
+
+<CardGroup cols={2}>
+  <Card title="Firewall Rules" icon="shield-alt">
+    Configure firewall rules to block or alert on connections to known TOR exit nodes based on your organization's policy.
+  </Card>
+  
+  <Card title="Network Behavior" icon="chart-network">
+    Monitor for unusual network patterns that may indicate TOR usage, such as encrypted traffic to non-standard ports.
+  </Card>
+  
+  <Card title="Policy Violations" icon="gavel">
+    If your organization prohibits TOR usage, successful connections indicate a policy violation requiring investigation.
+  </Card>
+  
+  <Card title="Threat Intelligence" icon="brain">
+    Correlate TOR node connections with other security events to identify potential data exfiltration or C2 activity.
+  </Card>
+</CardGroup>
+
+## Security Considerations
+
+<AccordionGroup>
+  <Accordion title="Legitimate Uses">
+    TOR has legitimate privacy and security use cases:
+    - Journalists protecting sources
+    - Whistleblowers reporting safely
+    - Users in countries with internet censorship
+    - Privacy-conscious individuals
+    
+    Organizations should balance security with legitimate privacy needs.
+  </Accordion>
+  
+  <Accordion title="Malicious Uses">
+    Threat actors use TOR for:
+    - Anonymizing command & control traffic
+    - Data exfiltration without attribution
+    - Accessing dark web marketplaces
+    - Bypassing network security controls
+    - Hiding malware communication
+  </Accordion>
+  
+  <Accordion title="Detection Strategy">
+    Recommended approach:
+    1. Block TOR by default in high-security environments
+    2. Allow with monitoring for specific business needs
+    3. Alert security teams on all TOR connections
+    4. Investigate context around TOR usage
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Successful connections to TOR exit nodes may indicate:
+- Unauthorized TOR usage in your network
+- Malware using TOR for command & control
+- Data exfiltration attempts
+- Policy violations requiring investigation
+</Warning>
+
+## Testing Workflow
+
+```bash
+# Run Somnium and select option 3
+python main.py
+# Choose: #3 Test connection to TOR Exits Nodes
+
+# Review results
+cat TOR_Results.txt
+
+# Check your security controls
+# - Firewall logs for TOR IP blocks
+# - IDS/IPS alerts for TOR traffic patterns
+# - Network flow data for encrypted sessions
+```
+
+<Note>
+The test generates 30 total connection attempts (15 IPs × 2 ports). TOR exit nodes may be intermittently available, so some FAILED connections are normal.
+</Note>
+
+## Policy Recommendations
+
+Organizations should establish clear policies regarding TOR usage:
+
+1. **High-Security Environments** - Block all TOR traffic at the perimeter
+2. **Regulated Industries** - Monitor and log all TOR connections for compliance
+3. **General Corporate** - Alert on TOR usage and investigate context
+4. **Research/Academic** - Allow with user accountability and monitoring

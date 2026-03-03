@@ -1,0 +1,185 @@
+---
+title: 'Malicious IP Testing'
+description: 'Test network security controls against known malicious IP addresses from multiple threat intelligence feeds'
+---
+
+The `known_IP()` function tests your network's ability to detect and block connections to known malicious IP addresses. It downloads threat intelligence from multiple reputable sources and attempts socket connections to validate your security controls.
+
+## Data Sources
+
+This module uses three curated threat intelligence feeds:
+
+- **EmergingThreats Known** - `http://opendbl.net/lists/etknown.list`
+- **Cisco Talos Intelligence** - `http://opendbl.net/lists/talos.list`
+- **Mirai Botnet IPs** - `https://mirai.security.gives/data/ip_list.txt`
+
+<Info>
+These feeds are updated regularly and contain IP addresses associated with malware command & control servers, botnets, and other malicious activities.
+</Info>
+
+## How It Works
+
+<Steps>
+  <Step title="Download Threat Feeds">
+    Downloads the latest malicious IP lists from EmergingThreats, Cisco Talos, and Mirai sources.
+    
+    ```python
+    urls = [
+        'http://opendbl.net/lists/etknown.list',
+        'http://opendbl.net/lists/talos.list',
+        'https://mirai.security.gives/data/ip_list.txt'
+    ]
+    ```
+  </Step>
+  
+  <Step title="Random Sampling">
+    Randomly selects 5 IPs from each feed (15 total samples) and validates them using IP address pattern matching.
+    
+    ```python
+    for file in saved_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+            for _ in range(5):
+                randomIP = random.choice(lines)
+                if check_ip(randomIP):
+                    sampleIP.append(randomIP)
+    ```
+  </Step>
+  
+  <Step title="Port Scanning">
+    Tests socket connections to each IP on common service ports (80, 22, 443) with a 5-second timeout.
+    
+    ```python
+    ports = [80, 22, 443]
+    for ip in sampleIP:
+        for port in ports:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((ip, port))
+    ```
+  </Step>
+  
+  <Step title="Results Logging">
+    Logs all connection attempts with timestamps to `IP_Results.txt`, marking each as SUCCESSFUL or FAILED.
+  </Step>
+  
+  <Step title="Cleanup">
+    Removes temporary downloaded feed files after testing completes.
+  </Step>
+</Steps>
+
+## Output Format
+
+Results are saved to **IP_Results.txt** with the following format:
+
+```
+Timestamp:14:23:45 IP:192.0.2.100 : Port:80 test SUCCESSFUL
+Timestamp:14:23:47 IP:192.0.2.100 : Port:22 test FAILED
+Timestamp:14:23:52 IP:192.0.2.100 : Port:443 test SUCCESSFUL
+```
+
+<CodeGroup>
+```python Function Definition
+def known_IP():
+    urls = [
+        'http://opendbl.net/lists/etknown.list',
+        'http://opendbl.net/lists/talos.list',
+        'https://mirai.security.gives/data/ip_list.txt'
+    ]
+    saved_files = []
+    for url in tqdm(urls, desc="Downloading Samples"):
+        response = requests.get(url)
+        if response.status_code == 200:
+            file_name = url.split("/")[-1]
+            with open(file_name, "w") as f:
+                f.write(response.text)
+                saved_files.append(file_name)
+    sampleIP  = []
+    for file in saved_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+            for _ in range(5):
+                randomIP  = random.choice(lines)
+                if check_ip(randomIP):
+                    sampleIP.append(randomIP)
+    sampleIP = [x.strip() for x in sampleIP]
+    ports = [80, 22, 443]
+    myFile = open("IP_Results.txt", mode="a+")
+    for ip in tqdm(sampleIP, desc="Testing 15 samples from Cisco Talos, EmergingThreats and Mirai, results saved to IP_Results.txt"):
+        for port in ports:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(5)
+                result = sock.connect_ex((ip, port))
+                if result == 0:
+                    current_time = time.strftime("%X")
+                    resultUP = (
+                        f"Timestamp:{str(current_time)} IP:{str(ip)} : Port:{str(port)}"
+                        + " test SUCCESSFUL\n"
+                    )
+                    myFile.write(resultUP)
+                else:
+                    current_time = time.strftime("%X")
+                    resultDOWN = (
+                        f"Timestamp:{str(current_time)} IP:{str(ip)} : Port:{str(port)}"
+                        + " test FAILED\n"
+                    )
+                    myFile.write(resultDOWN)
+                sock.close()
+            except Exception as e:
+                current_time = time.strftime("%X")
+                resultDOWN = (
+                    f"Timestamp:{str(current_time)} IP:{str(ip)} : Port:{str(port)}"
+                    + " test FAILED\n"
+                )
+                myFile.write(resultDOWN)
+                continue
+    for file_name in saved_files:
+        os.remove(file_name)
+```
+
+```python IP Validation
+def check_ip(ip):
+    pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+    return bool(re.match(pattern, ip))
+```
+</CodeGroup>
+
+## What to Monitor
+
+<CardGroup cols={2}>
+  <Card title="Firewall Blocks" icon="shield">
+    Your firewall should block all connection attempts to these IPs. Check firewall logs for denied connections.
+  </Card>
+  
+  <Card title="IDS/IPS Alerts" icon="bell">
+    Intrusion detection systems should generate alerts when connections are attempted to known malicious IPs.
+  </Card>
+  
+  <Card title="Network Logs" icon="list">
+    Review network traffic logs to ensure outbound connections to malicious IPs are logged and prevented.
+  </Card>
+  
+  <Card title="SIEM Events" icon="chart-line">
+    Security information and event management systems should correlate these IPs with threat intelligence feeds.
+  </Card>
+</CardGroup>
+
+<Warning>
+If connections are SUCCESSFUL, this indicates your security controls may not be blocking known malicious IPs. Review your firewall rules and threat intelligence integrations.
+</Warning>
+
+## Testing Workflow
+
+```bash
+# Run Somnium and select option 1
+python main.py
+# Choose: #1 Test connection with known bad IPs
+
+# Review results
+cat IP_Results.txt
+```
+
+<Note>
+The test generates 45 total connection attempts (15 IPs × 3 ports). Each attempt has a 5-second timeout, so the test takes approximately 3-4 minutes to complete.
+</Note>

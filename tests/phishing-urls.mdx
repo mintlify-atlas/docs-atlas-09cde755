@@ -1,0 +1,193 @@
+---
+title: 'Phishing URL Testing'
+description: 'Validate detection of active phishing campaigns using the OpenPhish real-time threat feed'
+---
+
+The `known_phish()` function tests your network's ability to detect and block access to active phishing websites. It uses the OpenPhish community feed, which contains URLs of verified phishing sites updated in real-time.
+
+## Data Source
+
+This module uses the OpenPhish community threat feed:
+
+- **OpenPhish Feed** - `https://openphish.com/feed.txt`
+
+<Info>
+OpenPhish provides a continuously updated list of verified phishing URLs. The feed contains hundreds to thousands of active phishing sites targeting various brands and services.
+</Info>
+
+## How It Works
+
+<Steps>
+  <Step title="Download Phishing Feed">
+    Downloads the latest phishing URL list from OpenPhish.
+    
+    ```python
+    urls = 'https://openphish.com/feed.txt'
+    response = requests.get(urls)
+    if response.status_code == 200:
+        file_name = urls.split("/")[-1]
+        with open(file_name, "w") as f:
+            f.write(response.text)
+    ```
+  </Step>
+  
+  <Step title="Random URL Selection">
+    Randomly selects 15 URLs from the feed and validates them using URL pattern matching.
+    
+    ```python
+    for file in saved_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+            for _ in range(15):
+                randomURL = random.choice(lines)
+                if check_url(randomURL):
+                    sampleURL.append(randomURL)
+    ```
+  </Step>
+  
+  <Step title="HTTP Connection Testing">
+    Attempts HTTP GET requests to each phishing URL with a 5-second timeout.
+    
+    ```python
+    for url in sampleURL:
+        try:
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                # Log successful connection
+        except Exception as e:
+            continue
+    ```
+  </Step>
+  
+  <Step title="Results Logging">
+    Logs all connection attempts with timestamps to `URL_Results.txt`, indicating success or failure.
+  </Step>
+  
+  <Step title="Cleanup">
+    Removes the temporary downloaded feed file after testing completes.
+  </Step>
+</Steps>
+
+## Output Format
+
+Results are saved to **URL_Results.txt** with the following format:
+
+```
+Timestamp:14:25:12 URL:http://phishing-example.com/fake-login test SUCCESSFUL
+Timestamp:14:25:18 URL:http://malicious-site.xyz/credential-harvest test FAILED
+Timestamp:14:25:23 URL:https://spoofed-brand.com/verify test SUCCESSFUL
+```
+
+<CodeGroup>
+```python Function Definition
+def known_phish():
+    urls = 'https://openphish.com/feed.txt'
+    saved_files = []
+    print("Downloading Samples")
+    response = requests.get(urls)
+    if response.status_code == 200:
+        file_name = urls.split("/")[-1]
+        with open(file_name, "w") as f:
+            f.write(response.text)
+            saved_files.append(file_name)
+    sampleURL = []
+    for file in saved_files:
+        with open(file, 'r') as f:
+            lines = f.readlines()
+            for _ in range(15):
+                randomURL = random.choice(lines)
+                if check_url(randomURL):
+                    sampleURL.append(randomURL)
+    sampleURL = [x.strip() for x in sampleURL]
+    myFile = open("URL_Results.txt", mode="a+")
+    for url in tqdm(sampleURL, desc="Testing 15 samples from OpenPhish results saved to URL_Results.txt"):
+        try:
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                current_time = time.strftime("%X")
+                resultUP = (
+                    f"Timestamp:{str(current_time)} URL:{str(url)}"
+                    + " test SUCCESSFUL\n"
+                )
+                myFile.write(resultUP)
+            else:
+                current_time = time.strftime("%X")
+                resultDOWN = f"Timestamp:{str(current_time)} URL:{str(url)}" + " test FAILED\n"
+                myFile.write(resultDOWN)
+        except Exception as e:
+            continue
+    for file_name in saved_files:
+        os.remove(file_name)
+```
+
+```python URL Validation
+def check_url(url):
+    pattern = r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)'
+    return bool(re.match(pattern, url))
+```
+</CodeGroup>
+
+## What to Monitor
+
+<CardGroup cols={2}>
+  <Card title="Web Filtering" icon="filter">
+    Your web proxy or content filter should block access to these phishing URLs before connections complete.
+  </Card>
+  
+  <Card title="DNS Security" icon="globe">
+    DNS security services should prevent resolution of known phishing domains.
+  </Card>
+  
+  <Card title="URL Reputation" icon="star">
+    Security gateways should flag these URLs based on reputation scores and threat intelligence.
+  </Card>
+  
+  <Card title="User Alerts" icon="exclamation-triangle">
+    Endpoint security solutions should warn users if they attempt to access these sites.
+  </Card>
+</CardGroup>
+
+<Warning>
+SUCCESSFUL connections to phishing URLs indicate a security gap. These are verified active phishing sites - your web security controls should block them.
+</Warning>
+
+## Common Phishing Targets
+
+OpenPhish feed typically includes phishing campaigns targeting:
+
+- Financial institutions (banks, payment processors)
+- Cloud service providers (Microsoft, Google, AWS)
+- Social media platforms
+- E-commerce sites
+- Cryptocurrency exchanges
+- Email providers
+
+## Testing Workflow
+
+```bash
+# Run Somnium and select option 2
+python main.py
+# Choose: #2 Test connection with known Phishing URLs
+
+# Review results
+cat URL_Results.txt
+
+# Check your security logs
+# - Web proxy logs
+# - DNS query logs
+# - Firewall application control logs
+```
+
+<Note>
+The test attempts to connect to 15 random phishing URLs from the live feed. Some URLs may be offline or taken down, which is expected behavior and will show as FAILED.
+</Note>
+
+## Integration with Security Tools
+
+Use this test to validate:
+
+- **Web Application Firewalls (WAF)** - Should block HTTP requests to known phishing domains
+- **Secure Web Gateways (SWG)** - Should categorize and block phishing sites
+- **DNS Filtering** - Should prevent DNS resolution of phishing domains
+- **Email Security** - Should flag these URLs if found in email messages
+- **Endpoint Protection** - Should prevent browsers from accessing these sites

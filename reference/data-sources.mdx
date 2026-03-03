@@ -1,0 +1,218 @@
+---
+title: Data Sources
+description: External threat intelligence feeds and data sources used by Somnium
+---
+
+## Overview
+
+Somnium leverages multiple open-source threat intelligence feeds to download real-world malicious indicators for security validation testing. This page documents all external data sources used by the tool.
+
+<Warning>
+All data sources contain real threat intelligence. Exercise extreme caution when testing these indicators in production environments. Always use isolated testing environments or proper security controls.
+</Warning>
+
+## Malicious IP Addresses
+
+### OpenDBL - EmergingThreats Known
+
+**URL**: `http://opendbl.net/lists/etknown.list`
+
+**Used in**: Known Bad IP testing (`known_IP()` function)
+
+**Description**: EmergingThreats known malicious IP addresses from the OpenDBL (Open Distributed Block List) project.
+
+**Sample size**: 5 random IPs selected from feed
+
+---
+
+### OpenDBL - Talos Intelligence
+
+**URL**: `http://opendbl.net/lists/talos.list`
+
+**Used in**: Known Bad IP testing (`known_IP()` function)
+
+**Description**: Cisco Talos intelligence-sourced malicious IP addresses distributed through OpenDBL.
+
+**Sample size**: 5 random IPs selected from feed
+
+---
+
+### Mirai Botnet IP List
+
+**URL**: `https://mirai.security.gives/data/ip_list.txt`
+
+**Used in**: Known Bad IP testing (`known_IP()` function)
+
+**Description**: Known Mirai botnet command and control (C2) server IP addresses and infected devices.
+
+**Sample size**: 5 random IPs selected from feed
+
+## Phishing URLs
+
+### OpenPhish Feed
+
+**URL**: `https://openphish.com/feed.txt`
+
+**Used in**: Phishing URL testing (`known_phish()` function)
+
+**Description**: Community-sourced phishing URL feed maintained by OpenPhish. Contains active phishing websites targeting credential theft and financial fraud.
+
+**Sample size**: 15 random URLs selected from feed
+
+**Update frequency**: OpenPhish updates this feed regularly with new phishing campaigns
+
+## TOR Network
+
+### SecOps Institute TOR Exit Nodes
+
+**URL**: `https://raw.githubusercontent.com/SecOps-Institute/Tor-IP-Addresses/master/tor-exit-nodes.lst`
+
+**Used in**: TOR exit node testing (`known_TOR()` function)
+
+**Description**: Comprehensive list of TOR network exit node IP addresses maintained by the SecOps Institute.
+
+**Sample size**: 15 random exit nodes selected from feed
+
+**Use case**: Detecting unauthorized TOR usage in enterprise environments
+
+## Malware Distribution
+
+### URLhaus API (abuse.ch)
+
+**URL**: `https://urlhaus-api.abuse.ch/v1/urls/recent/limit/200/`
+
+**Used in**: Malware distribution testing (`known_dist()` function)
+
+**Description**: Real-time malware distribution URLs from URLhaus, a project by abuse.ch that tracks malware distribution sites.
+
+**Sample size**: 20 random URLs from the 200 most recent "online" status URLs
+
+**API Response Format**: JSON with URL status, threat type, and metadata
+
+**Filtering**: Only selects URLs with `url_status: "online"` to ensure active threats
+
+<Warning>
+These are LIVE malware distribution URLs. Do not download or execute any content from these URLs. Testing should only verify network detection capabilities.
+</Warning>
+
+## Cryptomining Domains
+
+### Cryptomining Domain List
+
+**URL**: `https://gist.githubusercontent.com/asluppiter/88aa3cb285948e4f982dd94218e5baf3/raw/bffe8bb462eb8b3fb6cd647be65d67de059cb789/mining`
+
+**Used in**: Cryptomining domain testing (`known_crypto()` function)
+
+**Description**: Known cryptomining and cryptojacking domains used for unauthorized cryptocurrency mining.
+
+**Sample size**: 15 random domains selected from feed
+
+## Remote Access Tools (RAT)
+
+### Legitimate Remote Desktop Domains
+
+**Used in**: Remote desktop tool testing (`test_RAT()` function)
+
+**Source**: [Netify.ai Application Resources](https://www.netify.ai/resources/applications)
+
+**Description**: Functional domains for legitimate but commonly abused remote desktop tools. Threat actors use these tools for persistence and data exfiltration.
+
+**Reference**: [Red Canary - Misbehaving RATs](https://redcanary.com/blog/misbehaving-rats/)
+
+**Domains tested**:
+
+#### TeamViewer
+- `teamviewer.com`
+- `router1.teamviewer.com`
+- `udp.ping.teamviewer.com`
+
+#### AnyDesk
+- `boot.net.anydesk.com`
+- `rpm.anydesk.com`
+- `relay-a7a47b7c.net.anydesk.com`
+
+#### Splashtop
+- `splashtop.com`
+- `sdrs.splashtop.com`
+- `st2-v3-dc.splashtop.com`
+
+#### LogMeIn
+- `update.logmein.com`
+- `lmi-app22-01.logmein.com`
+- `secure.logmeinrescue.com`
+
+#### ScreenConnect
+- `screenconnect.com`
+- `server-nix4beff1f3-web.screenconnect.com`
+- `instance-ra153n-relay.screenconnect.com`
+
+#### GoToAssist
+- `gotoassist.com`
+
+## Bad User Agents
+
+### Nginx Ultimate Bad Bot Blocker
+
+**URL**: `https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/_generator_lists/bad-user-agents.list`
+
+**Used in**: Bad user agent testing (`known_badAgents()` function)
+
+**Description**: Comprehensive list of malicious user agents associated with spam bots, scrapers, and botnets.
+
+**Sample size**: 15 random user agents selected from feed
+
+**Test target**: HTTPS requests to `https://google.com` with spoofed user agents
+
+## DNS-over-HTTPS (DoH) Providers
+
+### Google Public DNS
+
+**URL**: `https://dns.google/resolve`
+
+**Used in**: DNS-over-HTTPS testing (`dns_HTTPS()` function)
+
+**Protocol**: DNS-over-HTTPS (RFC 8484)
+
+**Response format**: `application/dns-json`
+
+---
+
+### Cloudflare DNS
+
+**URL**: `https://cloudflare-dns.com/dns-query`
+
+**Used in**: DNS-over-HTTPS testing (`dns_HTTPS()` function)
+
+**Protocol**: DNS-over-HTTPS (RFC 8484)
+
+**Response format**: `application/dns-json`
+
+---
+
+**Test domains**: `google.com`, `example.com`, `bing.com`, `cloudflare.com`, `apple.com`
+
+**Query type**: A records
+
+<Warning>
+Unmanaged DNS using encryption protocols like TLS/HTTPS/QUIC reduces network visibility. If you use a managed DoH/DoT service (e.g., Cisco Umbrella, Zscaler), allowlist only those services and block the DoH/DoT category to prevent DNS tunneling.
+</Warning>
+
+## Data Handling
+
+Somnium follows these practices when handling external data:
+
+1. **Temporary file downloads**: All feed files are downloaded to the current directory
+2. **Automatic cleanup**: Downloaded feed files are deleted after sample extraction
+3. **Random sampling**: Uses Python's `random.choice()` to select samples
+4. **Validation**: IP addresses and URLs are validated using regex patterns before testing
+
+## Update Frequency
+
+Most threat intelligence feeds are updated regularly:
+
+- **Real-time**: URLhaus API (malware distribution)
+- **Hourly/Daily**: OpenPhish, TOR exit nodes
+- **Daily/Weekly**: OpenDBL feeds, bad user agents
+- **Static**: Remote desktop tool domains, cryptomining list
+
+Somnium fetches fresh data on every test run, ensuring you're testing against current threat intelligence.

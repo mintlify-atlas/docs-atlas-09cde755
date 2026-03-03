@@ -1,80 +1,326 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Run your first security test with Somnium in under 5 minutes
 ---
 
-## Get started in three steps
+This guide walks you through running your first threat simulation test and validating detection in your security infrastructure.
 
-Get your documentation site running locally and make your first customization.
+## Before you begin
 
-### Step 1: Set up your local environment
+Ensure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- [Installed Somnium](/installation) and all dependencies
+- Permission to generate malicious traffic in your environment
+- Access to your firewall, IDS, or SIEM logs
+- Noted the IP address of the system running Somnium
+
+<Warning>
+Do not run Somnium on production networks without authorization. Only use in controlled test environments.
+</Warning>
+
+## Run your first test
+
+<Steps>
+  <Step title="Launch Somnium">
+    Start the interactive CLI:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    cd Somnium
+    python3 main.py
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    You'll see the main menu with nine test options:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```
+    #1 Test connection with known bad IPs.
+    #2 Test connection with known Phishing URLs.
+    #3 Test connection to TOR Exits Nodes.
+    #4 Test connection to live Malware distribution Urls
+    #5 Test connection to known Cryptomining domains.
+    #6 Test connection to Domain-Generated-Algorithm Domains.
+    #7 Test connection to Remote Desktop Management.(Anydesk,etc.)
+    #8 Test connection using known bad user agents.
+    #9 Generate DNS queries using DoH
+    #0 Exit.
+    Choice:
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Select test #1 - Known bad IPs">
+    Enter `1` and press Enter to test connections to known malicious IP addresses.
+    
+    Somnium will:
+    1. Download threat feeds from Cisco Talos, EmergingThreats, and Mirai
+    2. Select 15 random IPs from the combined lists
+    3. Test connections on ports 80, 443, and 22
+    4. Log all results to `IP_Results.txt`
+    
+    ```
+    Downloading Samples: 100%|████████████████| 3/3
+    Testing 15 samples from Cisco Talos, EmergingThreats and Mirai: 100%|████████████████| 15/15
+    ```
+    
+    <Note>
+    Most connections will fail (timeout) because many malicious IPs are offline. This is expected - the goal is to test detection of the **connection attempts**, not successful connections.
+    </Note>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Check the log file">
+    Open `IP_Results.txt` in the Somnium directory:
+    
+    ```bash
+    cat IP_Results.txt
+    ```
+    
+    You'll see timestamped entries for each connection attempt:
+    
+    ```
+    Timestamp:14:23:15 IP:185.220.101.67 : Port:80 test FAILED
+    Timestamp:14:23:20 IP:185.220.101.67 : Port:22 test FAILED
+    Timestamp:14:23:25 IP:185.220.101.67 : Port:443 test FAILED
+    Timestamp:14:23:30 IP:91.203.5.165 : Port:80 test FAILED
+    Timestamp:14:23:35 IP:91.203.5.165 : Port:22 test FAILED
+    ```
+    
+    Note the timestamps - you'll use these to find the activity in your security logs.
+  </Step>
 
-### Step 3: Go live
+  <Step title="Validate detection in your security tools">
+    Use the timestamps from `IP_Results.txt` to search your security device logs.
+    
+    <CodeGroup>
+    ```bash Firewall logs
+    # Search firewall logs for the test system IP
+    # Look for blocked/denied connections around the timestamps
+    grep "185.220.101.67" /var/log/firewall.log
+    ```
+    
+    ```bash IDS/IPS logs
+    # Check Suricata/Snort for alerts
+    grep "185.220.101.67" /var/log/suricata/fast.log
+    ```
+    
+    ```sql SIEM query
+    # Example Splunk query
+    index=firewall src_ip="<your-test-system-ip>" 
+    | search dest_ip="185.220.101.67" OR dest_ip="91.203.5.165"
+    | table _time src_ip dest_ip dest_port action
+    ```
+    </CodeGroup>
+    
+    <img
+      className="block"
+      src="/images/IDS Log.png"
+      alt="Example of Suricata IDS detecting Somnium test traffic"
+    />
+    
+    **What to look for:**
+    - Firewall deny/block events for the malicious IPs
+    - IDS/IPS signature alerts (ET INFO, Talos, etc.)
+    - Proxy blocks or reputation-based denies
+    - SIEM correlation rules triggering on threat intel matches
+  </Step>
+</Steps>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+## Understanding the results
+
+### Log file format
+
+Each test generates a dedicated log file:
+
+| Log File | Test Type |
+|----------|----------|
+| `IP_Results.txt` | Known bad IP connections |
+| `URL_Results.txt` | Phishing URL tests |
+| `TOR_Results.txt` | TOR exit node connections |
+| `Malware_Results.txt` | Malware distribution URLs |
+| `Mining_Results.txt` | Cryptomining domains |
+| `DGA_Results.txt` | DGA domain generation |
+| `RAT_Results.txt` | Remote access tool connections |
+| `Agent_Results.txt` | Bad user-agent strings |
+| `DoH_Results.txt` | DNS over HTTPS queries |
+
+### Success vs. failure
+
+- **test SUCCESSFUL** - Connection was established (rare, indicates IP/domain is still active)
+- **test FAILED** - Connection timed out or was refused (expected for most tests)
+- **test DONE** - Test completed (used for ping-based tests)
+
+<Tip>
+Even failed connections should be **detected and logged** by your security infrastructure. If you don't see any alerts, you may have a visibility gap.
+</Tip>
+
+## Run additional tests
+
+Now try other threat scenarios:
+
+<CodeGroup>
+```bash Phishing URLs (Test #2)
+python3 main.py
+# Enter: 2
+# Downloads OpenPhish feed and tests 15 random phishing URLs
+# Results saved to URL_Results.txt
+```
+
+```bash TOR Exit Nodes (Test #3)
+python3 main.py
+# Enter: 3
+# Tests connections to 15 TOR exit nodes
+# Results saved to TOR_Results.txt
+```
+
+```bash Bad User Agents (Test #8)
+python3 main.py
+# Enter: 8
+# Sends HTTPS requests to Google using known malicious user-agent strings
+# Results saved to Agent_Results.txt
+```
+
+```bash DNS over HTTPS (Test #9)
+python3 main.py
+# Enter: 9
+# Generates encrypted DNS queries via Google and Cloudflare DoH servers
+# Results saved to DoH_Results.txt
+```
+</CodeGroup>
+
+## Example workflow: Validate IDS signatures
+
+Here's a complete workflow for testing your IDS/IPS:
+
+<Steps>
+  <Step title="Run the known bad IPs test">
+    ```bash
+    python3 main.py
+    # Enter: 1
+    ```
+  </Step>
+
+  <Step title="Get the first tested IP and timestamp">
+    ```bash
+    head -1 IP_Results.txt
+    # Example output:
+    # Timestamp:14:23:15 IP:185.220.101.67 : Port:80 test FAILED
+    ```
+  </Step>
+
+  <Step title="Search IDS logs for alerts">
+    ```bash
+    # Suricata example
+    grep "14:23" /var/log/suricata/fast.log | grep "185.220.101.67"
+    
+    # Expected: ET INFO, Talos, or other reputation-based alerts
+    ```
+  </Step>
+
+  <Step title="Verify the signature triggered">
+    If you see alerts like:
+    ```
+    [**] [1:2520000:1] ET INFO Known Bad IP (Talos) [**]
+    ```
+    
+    Your IDS successfully detected the malicious connection attempt.
+  </Step>
+
+  <Step title="Document gaps">
+    If no alerts appear:
+    - Verify your IDS is monitoring the correct network segment
+    - Check that threat intelligence feeds are enabled
+    - Confirm signature updates are current
+    - Test with other scenarios (phishing, malware URLs)
+  </Step>
+</Steps>
+
+## Common testing scenarios
+
+### Test firewall blocking
+
+**Goal**: Confirm firewall blocks connections to known bad IPs
+
+1. Run test #1 (Known bad IPs)
+2. Check firewall deny logs for the destination IPs
+3. Verify the action is "DENY" or "BLOCK"
+
+### Test proxy URL filtering
+
+**Goal**: Validate proxy blocks phishing and malware URLs
+
+1. Run test #2 (Phishing URLs) or #4 (Malware distribution)
+2. Check proxy logs for URL category blocks
+3. Look for categories like "Phishing", "Malware", or "Security"
+
+### Test SIEM threat correlation
+
+**Goal**: Ensure SIEM creates alerts for threat intel matches
+
+1. Run any test (e.g., test #5 for cryptomining)
+2. Wait 5-10 minutes for log ingestion
+3. Check SIEM for correlation alerts
+4. Verify incident/ticket was created if configured
+
+### Test DNS visibility
+
+**Goal**: Detect encrypted DNS (DoH) that bypasses controls
+
+1. Run test #9 (DNS over HTTPS)
+2. Check if your firewall/proxy detected the DoH queries
+3. Verify you have visibility into the encrypted DNS requests
+
+<Warning>
+Test #9 highlights a visibility gap in many networks. If you don't detect DoH queries to Google/Cloudflare, you may have attackers tunneling DNS traffic without detection.
+</Warning>
+
+## Troubleshooting
+
+### No log files generated
+
+```bash
+# Check write permissions
+ls -la
+
+# Verify current directory
+pwd
+
+# Run with explicit output
+python3 main.py 2>&1 | tee somnium-output.txt
+```
+
+### All tests show FAILED
+
+This is expected - most malicious infrastructure is offline. The goal is to verify your security tools **detect the attempts**, not that connections succeed.
+
+### No alerts in security logs
+
+Possible causes:
+- Security device isn't monitoring the test system's network segment
+- Threat intelligence feeds aren't enabled
+- Logs aren't being forwarded to SIEM
+- Time synchronization issues between systems
+
+```bash
+# Verify test system IP is correct
+ip addr show
+
+# Check timestamp alignment
+date
+
+# Confirm network path to security devices
+traceroute <firewall-ip>
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Test scenarios" icon="vials" href="/tests/overview">
+    Detailed guide to all nine threat simulation tests
+  </Card>
+  <Card title="Integration guide" icon="diagram-project" href="/usage/integration">
+    Integrate Somnium with your security infrastructure
+  </Card>
+  <Card title="Interpreting results" icon="magnifying-glass-chart" href="/usage/interpreting-results">
+    Parse and analyze Somnium results at scale
+  </Card>
+  <Card title="Data sources" icon="database" href="/reference/data-sources">
+    Learn about threat intelligence feeds used by Somnium
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

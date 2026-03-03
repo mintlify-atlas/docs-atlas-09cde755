@@ -1,0 +1,318 @@
+---
+title: 'DNS over HTTPS Testing'
+description: 'Generate DNS queries using DNS over HTTPS (DoH) to test detection of unmanaged encrypted DNS traffic'
+---
+
+The `dns_HTTPS()` function tests your network's ability to detect and control DNS over HTTPS (DoH) usage. While DoH provides privacy benefits, unmanaged DoH can bypass DNS security controls and reduce network visibility.
+
+## Security Context
+
+DNS over HTTPS (DoH) encrypts DNS queries using HTTPS, which:
+
+- **Privacy Benefit** - Prevents DNS query surveillance and manipulation
+- **Security Risk** - Bypasses DNS filtering and content controls
+- **Visibility Loss** - Hides DNS queries from security monitoring
+- **Policy Bypass** - Circumvents organizational DNS policies
+
+<Warning>
+Unmanaged DNS using encryption protocols like TLS/HTTPS/QUIC is a security risk because you lose visibility over DNS requests. 
+
+If you use managed DoH/DoT services (e.g., Cisco Umbrella, Zscaler), you should allowlist only those services and block the unmanaged DoH/DoT category.
+</Warning>
+
+## How It Works
+
+<Steps>
+  <Step title="Define Target Domains">
+    Selects common domains to query using DoH services.
+    
+    ```python
+    domains = ['google.com','example.com','bing.com','cloudflare.com','apple.com']
+    ```
+  </Step>
+  
+  <Step title="Configure DoH Servers">
+    Uses public DoH resolvers from Google and Cloudflare.
+    
+    ```python
+    doh_servers = [
+        'https://dns.google/resolve',
+        'https://cloudflare-dns.com/dns-query',
+    ]
+    ```
+  </Step>
+  
+  <Step title="Set DoH Headers">
+    Configures HTTP headers to request DNS JSON responses.
+    
+    ```python
+    headers = {
+        'accept': 'application/dns-json',
+    }
+    ```
+  </Step>
+  
+  <Step title="Send DoH Queries">
+    Sends DNS queries over HTTPS to both Google and Cloudflare DoH servers for each domain.
+    
+    ```python
+    for domain in domains:
+        dns_params = {
+            'name': domain,
+            'type': 'A'
+        }
+        for server in doh_servers:
+            response = requests.get(server, params=dns_params, headers=headers)
+            dns_response = response.content
+    ```
+  </Step>
+  
+  <Step title="Results Logging">
+    Logs all DoH queries and responses with timestamps to `DoH_Results.txt`.
+  </Step>
+</Steps>
+
+## DoH Providers Tested
+
+### Google Public DNS
+- **DoH Endpoint** - `https://dns.google/resolve`
+- **Description** - Google's public DoH resolver service
+- **Features** - Fast, reliable, JSON API support
+
+### Cloudflare DNS
+- **DoH Endpoint** - `https://cloudflare-dns.com/dns-query`
+- **Description** - Cloudflare's privacy-focused DoH service
+- **Features** - Low latency, privacy-centric, GDPR compliant
+
+<Info>
+These are the two most popular public DoH providers. Others include Quad9, OpenDNS, and AdGuard DNS.
+</Info>
+
+## Output Format
+
+Results are saved to **DoH_Results.txt** with the following format:
+
+```
+Timestamp:15:00:10 Google response for google.com is : b'{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"google.com.","type":1}],"Answer":[{"name":"google.com.","type":1,"TTL":299,"data":"142.250.185.46"}]}'
+Timestamp:15:00:11 Cloudflare response for google.com is : b'{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"google.com.","type":1}],"Answer":[{"name":"google.com.","type":1,"TTL":300,"data":"142.250.185.46"}]}'
+```
+
+<CodeGroup>
+```python Function Definition
+def dns_HTTPS():
+    print("Unmanaged DNS using encryption protocols like TLS/HTTPS/QUIC is a risk given the fact that you lose visibility over trafic (requests), if you use a managed DoH/DoT (EX: Umbrella, Zscaler,etc), you should allowlist only those services and block the category of DoH/DoT\n")
+
+    domains = ['google.com','example.com','bing.com','cloudflare.com','apple.com']
+    myFile = open("DoH_Results.txt", mode="a+")
+    x=0
+    headers = {
+        'accept': 'application/dns-json',
+    }
+    for _ in tqdm(domains,desc="Generating requests"):
+        dns_params = {
+            'name': domains[x],
+            'type': 'A'
+        }
+        y=0
+        doh_servers = [
+            'https://dns.google/resolve',
+            'https://cloudflare-dns.com/dns-query',
+        ]
+        for _ in doh_servers:
+            try:
+                response = requests.get(doh_servers[y], params=dns_params,headers=headers)
+                dns_response = response.content
+                current_time = time.strftime("%X")
+                if doh_servers[y] == "https://dns.google/resolve":
+                    result = f'Timestamp:{str(current_time)} Google response for {domains[x]} is : {dns_response}\n'
+                    myFile.write(result)
+                elif doh_servers[y] == "https://cloudflare-dns.com/dns-query":
+                    result = f'Timestamp:{str(current_time)} Cloudflare response for {domains[x]} is : {dns_response}\n'
+                    myFile.write(result)
+                y=y+1
+            except Exception as e:
+                result = f'Timestamp:{str(current_time)} Error response for {domains[x]}\n'
+                myFile.write(result)
+        x=x+1
+```
+</CodeGroup>
+
+## What to Monitor
+
+<CardGroup cols={2}>
+  <Card title="HTTPS Traffic Analysis" icon="search">
+    Monitor HTTPS connections to known DoH provider endpoints (dns.google, cloudflare-dns.com).
+  </Card>
+  
+  <Card title="DNS Bypass Detection" icon="route">
+    Detect when systems bypass your internal DNS resolvers.
+  </Card>
+  
+  <Card title="TLS Inspection" icon="lock-open">
+    Use TLS inspection to identify DoH traffic patterns (with appropriate legal considerations).
+  </Card>
+  
+  <Card title="Policy Enforcement" icon="gavel">
+    Enforce DNS policy by blocking or redirecting DoH traffic to managed services.
+  </Card>
+</CardGroup>
+
+## Security Implications
+
+<AccordionGroup>
+  <Accordion title="Loss of DNS Visibility">
+    Unmanaged DoH prevents security teams from:
+    - Monitoring DNS queries for threat detection
+    - Identifying malware C2 communications
+    - Detecting data exfiltration via DNS
+    - Analyzing user browsing patterns
+    - Enforcing content policies
+    
+    This significantly reduces security visibility.
+  </Accordion>
+  
+  <Accordion title="Bypassing Security Controls">
+    DoH can circumvent:
+    - DNS-based content filtering
+    - Malware domain blocking
+    - Phishing site prevention
+    - Category-based web filtering
+    - Parental controls
+    
+    Users and malware can bypass these protections.
+  </Accordion>
+  
+  <Accordion title="Data Exfiltration Risk">
+    Threat actors may use DoH to:
+    - Hide C2 communications in HTTPS traffic
+    - Exfiltrate data through DNS tunneling
+    - Avoid detection by DNS security tools
+    - Bypass DNS-based threat intelligence
+  </Accordion>
+  
+  <Accordion title="Compliance Concerns">
+    Unmanaged DoH may violate:
+    - Corporate acceptable use policies
+    - Regulatory monitoring requirements
+    - Data governance policies
+    - Legal intercept obligations
+    - Industry compliance standards
+  </Accordion>
+</AccordionGroup>
+
+## Managed vs. Unmanaged DoH
+
+<Note>
+**Managed DoH Services** (Recommended)
+
+Enterprises should use managed DoH/DoT services that provide:
+- Security filtering and threat intelligence
+- Policy enforcement capabilities
+- Logging and visibility
+- Compliance features
+
+Examples:
+- Cisco Umbrella
+- Zscaler DNS Security
+- Cloudflare for Teams
+- Quad9 Enterprise
+
+**Unmanaged DoH** (Should be Blocked)
+
+Public DoH services like Google and Cloudflare DNS bypass organizational controls and should typically be blocked for corporate users.
+</Note>
+
+## Testing Workflow
+
+```bash
+# Run Somnium and select option 9
+python main.py
+# Choose: #9 Generate DNS queries using DoH
+
+# Review results
+cat DoH_Results.txt
+
+# Check your security controls
+# - Firewall logs for connections to DoH providers
+# - DNS query logs for bypass detection
+# - TLS inspection logs
+# - SIEM alerts for DoH usage
+```
+
+<Warning>
+If DoH queries are SUCCESSFUL and your organization doesn't use managed DoH services, this indicates:
+- Users can bypass DNS security controls
+- Malware can hide C2 communications
+- Loss of DNS-based threat detection
+- Potential policy violations
+
+Block public DoH providers unless using them as managed services.
+</Warning>
+
+## Detection Strategies
+
+<Steps>
+  <Step title="Block Known DoH Endpoints">
+    Create firewall rules to block connections to public DoH provider IP addresses and domains.
+  </Step>
+  
+  <Step title="Monitor HTTPS Patterns">
+    Analyze HTTPS traffic for DoH-specific patterns:
+    - DNS JSON format in HTTPS requests
+    - Connections to known DoH endpoints
+    - High frequency of short HTTPS requests
+  </Step>
+  
+  <Step title="DNS Canary Domains">
+    Use canary domains that should only be queried through internal DNS to detect bypass attempts.
+  </Step>
+  
+  <Step title="Enforce Internal DNS">
+    Configure endpoints to use only internal/managed DNS resolvers via:
+    - Group Policy (Windows)
+    - MDM profiles (macOS/mobile)
+    - Network-level DNS enforcement
+  </Step>
+</Steps>
+
+## Public DoH Providers to Consider Blocking
+
+Common public DoH services that bypass enterprise controls:
+
+- **Google Public DNS** - `dns.google`, `8.8.8.8`, `8.8.4.4`
+- **Cloudflare DNS** - `cloudflare-dns.com`, `1.1.1.1`, `1.0.0.1`
+- **Quad9** - `dns.quad9.net`, `9.9.9.9`
+- **OpenDNS** - `doh.opendns.com`
+- **AdGuard DNS** - `dns.adguard.com`
+- **NextDNS** - `dns.nextdns.io`
+
+## Security Controls to Validate
+
+- **Firewall Rules** - Block connections to public DoH provider IPs and domains
+- **DNS Enforcement** - Ensure endpoints use only approved DNS resolvers
+- **TLS Inspection** - Inspect HTTPS traffic to identify DoH usage (where legally permitted)
+- **Network Policies** - Prevent DNS resolver changes on managed devices
+- **SIEM Detection** - Alert on connections to known DoH endpoints
+- **Endpoint Controls** - Use MDM/GPO to enforce DNS settings
+
+## Recommended Approach
+
+1. **Audit Current State** - Identify if DoH is being used in your environment
+2. **Define Policy** - Determine if managed DoH services meet your needs
+3. **Implement Controls** - Block public DoH or migrate to managed DoH
+4. **Monitor Compliance** - Continuously detect DoH bypass attempts
+5. **User Education** - Explain why unmanaged DoH is blocked
+
+<Info>
+Some browsers (Firefox, Chrome, Edge) have built-in DoH support that may be enabled by default. Configure browser policies to disable or redirect DoH to your managed DNS service.
+</Info>
+
+## Browser DoH Configuration
+
+Major browsers support DoH:
+
+- **Firefox** - Can be disabled via `network.trr.mode` setting
+- **Chrome/Edge** - Uses system DNS by default but supports DoH
+- **Safari** - Uses system DNS resolver settings
+
+Use Group Policy or MDM to enforce DNS settings across managed browsers.

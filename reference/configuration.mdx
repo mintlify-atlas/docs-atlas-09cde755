@@ -1,0 +1,130 @@
+---
+title: Configuration
+description: Python dependencies, timeout settings, and sample sizes for Somnium
+---
+
+## Python Dependencies
+
+Somnium requires the following Python packages to function properly:
+
+### Core Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|----------|
+| `requests` | 2.29.0 | HTTP requests to external data sources and target URLs |
+| `tqdm` | 4.65.0 | Progress bars for sample downloading and testing |
+| `art` | 5.9 | ASCII art banner generation |
+| `colorama` | 0.4.6 | Cross-platform colored terminal output |
+
+### Supporting Libraries
+
+| Package | Version | Purpose |
+|---------|---------|----------|
+| `urllib3` | 2.0.1 | URL handling and connection pooling |
+| `certifi` | 2022.12.7 | SSL certificate verification |
+| `charset-normalizer` | 3.1.0 | Character encoding detection |
+| `idna` | 3.4 | Internationalized domain name support |
+
+### Standard Library Modules
+
+Somnium also uses these Python standard library modules:
+- `socket` - Low-level network interface for port scanning
+- `time` - Timestamp generation
+- `os` - File operations and screen clearing
+- `re` - Regular expression validation for IPs and URLs
+- `subprocess` - Executing ping commands
+- `platform` - OS detection for cross-platform compatibility
+- `string` - String operations for DGA generation
+- `random` - Random sample selection from threat feeds
+
+## Installation
+
+Install all dependencies using pip:
+
+```bash
+pip install -r requierements.txt
+```
+
+<Warning>
+The requirements file in the repository is named `requierements.txt` (note the spelling). Make sure to reference the correct filename when installing.
+</Warning>
+
+## Timeout Settings
+
+Somnium uses various timeout configurations to prevent hanging on unresponsive targets:
+
+### Socket Timeouts
+- **Default socket timeout**: 5 seconds
+- **Applies to**: IP port scanning, TOR node testing, DGA domain testing
+- **Configuration**: `sock.settimeout(5)` in main.py:55, 151, 271
+
+```python
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.settimeout(5)  # 5 second timeout
+```
+
+### HTTP Request Timeouts
+- **Default HTTP timeout**: 5 seconds
+- **Applies to**: Phishing URL tests, malware distribution tests, cryptomining tests
+- **Configuration**: `timeout=5` parameter in requests.get() calls
+
+```python
+response = requests.get(url, timeout=5)
+```
+
+### Ping Timeout
+- **Default ping count**: 1 packet
+- **Applies to**: Remote Desktop tool URL testing
+- **Configuration**: Single ping packet (`-n 1` on Windows, `-c 1` on Linux)
+
+## Sample Sizes
+
+Each test module uses different sample sizes for security validation:
+
+| Test Type | Sample Size | Source |
+|-----------|-------------|--------|
+| Known Bad IPs | 15 samples | 5 samples each from 3 sources (EmergingThreats, Talos, Mirai) |
+| Phishing URLs | 15 samples | Random selection from OpenPhish feed |
+| TOR Exit Nodes | 15 samples | Random selection from SecOps-Institute list |
+| Malware Distribution | 20 samples | Random from URLhaus recent 200 "online" URLs |
+| Cryptomining Domains | 15 samples | Random from mining domain list |
+| DGA Domains | 14 samples | Randomly generated domains |
+| Bad User Agents | 15 samples | Random from nginx bad bot blocker list |
+| DNS-over-HTTPS | 5 domains | Tested against 2 DoH providers (Google, Cloudflare) |
+
+### Port Testing Configuration
+
+**Known Bad IPs & TOR Nodes**:
+- Ports tested: `80, 22, 443`
+- Tests per IP: 3 (one per port)
+
+**DGA Domains**:
+- Ports tested: `80, 443`
+- Tests per domain: 2 (one per port)
+
+### DGA Configuration
+
+**Domain Generation Algorithm Settings**:
+- Domain length: 5-15 characters (randomly selected)
+- Character set: Lowercase ASCII letters
+- TLDs used: `xyz`, `top`, `zone`, `info`, `biz`, `gq`, `tk`, `club`
+
+<Warning>
+These TLDs are commonly associated with cybercrime according to [Netcraft's analysis](https://trends.netcraft.com/cybercrime/tlds). Exercise caution when testing.
+</Warning>
+
+## Output Files
+
+Somnium generates result files in the current working directory:
+
+- `IP_Results.txt` - Known bad IP test results
+- `URL_Results.txt` - Phishing URL test results
+- `TOR_Results.txt` - TOR exit node test results
+- `Malware_Results.txt` - Malware distribution URL test results
+- `Mining_Results.txt` - Cryptomining domain test results
+- `DGA_Results.txt` - DGA domain test results
+- `RAT_Results.txt` - Remote access tool test results
+- `Agent_Results.txt` - Bad user agent test results
+- `DoH_Results.txt` - DNS-over-HTTPS test results
+
+All result files use append mode (`a+`), so results accumulate across multiple test runs.

@@ -1,0 +1,88 @@
+---
+title: 'Test Modules Overview'
+description: 'Comprehensive suite of security test modules for validating network security controls and detection capabilities'
+---
+
+Somnium provides a comprehensive suite of test modules designed to validate your network security controls, firewall rules, and intrusion detection systems. Each module simulates real-world threat scenarios using live threat intelligence feeds.
+
+## Available Test Modules
+
+<CardGroup cols={2}>
+  <Card title="Malicious IPs" icon="network-wired" href="/tests/malicious-ips">
+    Test connections to known malicious IP addresses from threat intelligence feeds
+  </Card>
+  
+  <Card title="Phishing URLs" icon="fish" href="/tests/phishing-urls">
+    Validate detection of active phishing campaigns from OpenPhish feed
+  </Card>
+  
+  <Card title="TOR Exit Nodes" icon="user-secret" href="/tests/tor-nodes">
+    Test connections to TOR network exit nodes for anonymity detection
+  </Card>
+  
+  <Card title="Malware Distribution" icon="virus" href="/tests/malware-distribution">
+    Test live malware distribution URLs from URLhaus database
+  </Card>
+  
+  <Card title="Cryptomining Domains" icon="coins" href="/tests/cryptomining">
+    Detect connections to known cryptocurrency mining pools and domains
+  </Card>
+  
+  <Card title="DGA Domains" icon="robot" href="/tests/dga-domains">
+    Generate and test Domain Generation Algorithm (DGA) patterns
+  </Card>
+  
+  <Card title="Remote Desktop Tools" icon="desktop" href="/tests/remote-desktop">
+    Test connections to unsanctioned remote desktop management tools
+  </Card>
+  
+  <Card title="Bad User Agents" icon="user-slash" href="/tests/bad-user-agents">
+    Simulate traffic using known malicious user agent strings
+  </Card>
+  
+  <Card title="DNS over HTTPS" icon="shield-alt" href="/tests/dns-over-https">
+    Generate DNS queries using DoH to test unmanaged encrypted DNS
+  </Card>
+</CardGroup>
+
+## Test Results
+
+Each test module generates a dedicated results file containing timestamped entries of all test activities:
+
+- **IP_Results.txt** - Malicious IP connection tests
+- **URL_Results.txt** - Phishing URL connection tests
+- **TOR_Results.txt** - TOR exit node connection tests
+- **Malware_Results.txt** - Malware distribution URL tests
+- **Mining_Results.txt** - Cryptomining domain tests
+- **DGA_Results.txt** - DGA domain connection tests
+- **RAT_Results.txt** - Remote desktop tool connection tests
+- **Agent_Results.txt** - Bad user agent simulation tests
+- **DoH_Results.txt** - DNS over HTTPS query tests
+
+<Note>
+All test modules use live threat intelligence feeds and real malicious infrastructure. Results are appended to files, allowing you to track test history over time.
+</Note>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Firewall Rule Validation">
+    Verify that your firewall properly blocks connections to known malicious IPs, TOR nodes, and malware distribution sites.
+  </Accordion>
+  
+  <Accordion title="IDS/IPS Testing">
+    Validate that your intrusion detection and prevention systems trigger alerts for phishing URLs, DGA domains, and malicious user agents.
+  </Accordion>
+  
+  <Accordion title="DNS Security">
+    Test DNS filtering capabilities and detect unmanaged DNS over HTTPS usage that bypasses security controls.
+  </Accordion>
+  
+  <Accordion title="Endpoint Detection">
+    Verify endpoint security solutions detect connections to cryptomining pools and unsanctioned remote desktop tools.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+These tests generate connections to real malicious infrastructure. Always run Somnium in a controlled environment with proper security monitoring in place.
+</Warning>

@@ -1,0 +1,75 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Somnium",
+  "projectDescription": "Network security testing tool for validating IDS/IPS detection capabilities",
+  "theme": "aspen",
+  "primaryColor": "#DC2626",
+  "lightColor": "#FCA5A5",
+  "darkColor": "#991B1B",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Test Modules",
+        "pages": [
+          "tests/overview",
+          "tests/malicious-ips",
+          "tests/phishing-urls",
+          "tests/tor-nodes",
+          "tests/malware-distribution",
+          "tests/cryptomining",
+          "tests/dga-domains",
+          "tests/remote-desktop",
+          "tests/bad-user-agents",
+          "tests/dns-over-https"
+        ]
+      },
+      {
+        "group": "Usage",
+        "pages": [
+          "usage/running-tests",
+          "usage/interpreting-results",
+          "usage/integration"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/configuration",
+          "reference/data-sources",
+          "reference/troubleshooting",
+          "reference/faq"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Test IDS/IPS with known malicious IPs from Cisco Talos and EmergingThreats",
+    "Validate detection of phishing URLs from OpenPhish feeds",
+    "Test TOR exit node connections",
+    "Simulate malware distribution URL access from URLhaus",
+    "Test cryptomining domain detection",
+    "Generate and test Domain-Generated-Algorithm (DGA) domains",
+    "Simulate remote desktop management tool traffic (TeamViewer, AnyDesk, etc.)",
+    "Test with known bad user agents",
+    "Generate DNS-over-HTTPS queries"
+  ],
+  "publicApiSurface": [
+    "known_IP() - Test connections to known malicious IPs",
+    "known_phish() - Test connections to phishing URLs",
+    "known_TOR() - Test TOR exit node connections",
+    "known_dist() - Test malware distribution URL access",
+    "known_crypto() - Test cryptomining domain connections",
+    "generate_DGA() - Generate and test DGA domains",
+    "test_RAT() - Test remote desktop management tools",
+    "known_badAgents() - Test with known bad user agents",
+    "dns_HTTPS() - Generate DNS-over-HTTPS queries"
+  ]
+}
